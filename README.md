@@ -10,6 +10,10 @@ O objetivo do jogo é simples, você começa com uma quantidade de bolas inicial
 Faça um remix do app no replit para rodar na web: https://replit.com/@felpzito999/BallsPyramid#main.py
 
 Rode localmente: 
+```
 git clone https://github.com/FeLiPeOLi7/BallsPyramid.git
+
 pip install requirements.txt
+
 python3 balls.py
+```
