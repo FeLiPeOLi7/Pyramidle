@@ -9,7 +9,13 @@ O objetivo do jogo é simples, você começa com uma quantidade de bolas inicial
 # Como executar:
 Faça um remix do app no replit para rodar na web: https://replit.com/@felpzito999/BallsPyramid#main.py
 
-Rode localmente: 
-git clone https://github.com/FeLiPeOLi7/BallsPyramid.git
+Rode localmente (Irá baixar todo o repositório, caso não queira isso apenas baixe BallsPyramid): 
+```
+git clone https://github.com/FeLiPeOLi7/effective-train
+
+cd BallsPyramid
+
 pip install requirements.txt
+
 python3 balls.py
+```
