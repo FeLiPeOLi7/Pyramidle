@@ -1,6 +1,9 @@
 import pygame
 import math
 import random
+import numpy as np
+from collections import defaultdict
+import pickle
 
 # Cores
 white = (255, 255, 255)
@@ -75,6 +78,8 @@ class Game:
         vertical_spacing = 2 * radius * 0.866  # espaçamento vertical do triangulo equilatero
         pyramid_height = (self.num_balls - 1) * vertical_spacing + 2 * radius
         top_margin = (self.screen_height - pyramid_height) / 2
+
+        self.balls.clear()
         for i in range(self.num_balls):
             y = (self.screen_height - top_margin - radius) - (vertical_spacing * i)
             row_length = self.num_balls - i
@@ -88,6 +93,8 @@ class Game:
         
         self.done = False
         self.state = self.get_state()
+
+        return self.state, {}
 
 
     def on_init(self):
@@ -144,7 +151,7 @@ class Game:
             if self.solving:
                 if not self.is_done():
                     actions = self.get_actions()
-                    action = max_action(self.q_table, self.state, actions)
+                    action = max_action(self.q_table, self.state, actions, len(self.balls))
                     self.state, done = self.play_step(action)
                     self.clicks += 1
                 else:
@@ -183,16 +190,51 @@ class Game:
         self.state = self.get_state()
         return self.state, self.is_done()
 
+    def step(self, action):
 
-def max_action(q_table, state, actions):
+        next_state, terminated = self.play_step(action)
+
+        if terminated:
+            reward = 100
+        else:
+            reward = -1
+
+        truncated = False
+
+        return next_state, reward, terminated, truncated, {}
+
+
+def max_action(q_table, state, actions, qtd_balls):
+    #Hard-coded para testar o algoritmo do Q_learning
+    if qtd_balls == 3:
+        values = q_table[state]
+        return int(np.argmax(values))
+    
     values = [q_table.get((state, a), 0) for a in actions]
     max_val = max(values)
     max_acts = [a for a, v in zip(actions, values) if v == max_val]
     return random.choice(max_acts)
 
+
+N_ACTIONS = 64
+def default_q(N_ACTIONS):
+    return np.zeros(N_ACTIONS)
+
 def main():
     number_of_balls = int(input("Digite o numero de bolas inicial na pirâmide: "))
-    game = Game(number_of_balls)
+    
+    q_table = None
+    
+    # Foi utilizado o algoritmo de Q_learning para solucionar o problema das bolas de forma automática
+    # O algoritmo não irá funcionar para números de bola diferente de 3, pois só foi treinado com 3
+    # A tabela Q cresce muito rápido para números grandes, 6 bolas geram quase 2 milhões de ações possíveis
+    if number_of_balls == 3:
+        with open("q_table.pkl", "rb") as f:
+            data = pickle.load(f)
+    
+        q_table = defaultdict(default_q, data)
+
+    game = Game(number_of_balls, q_table)
     game.on_loop()
 
 if __name__ == "__main__":
