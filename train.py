@@ -8,14 +8,14 @@ import torch, torch.nn as nn, torch.optim as optim
 import matplotlib.pyplot as plt
 
 
-EPISODES = 1500
+EPISODES = 100000
 MAX_BALLS = 8
 ALPHA = 0.001
 GAMMA = 0.95
 INITIAL_EPSILON = 1.0
 FINAL_EPSILON = 0.05
 DECAY = (INITIAL_EPSILON - FINAL_EPSILON) / (EPISODES * 0.75)
-CAPACITY = 15000
+CAPACITY = 200000
 BATCH_SZ = 64
 
 class BallsAgent:
@@ -125,7 +125,11 @@ class BallsAgent:
         # What's the best we could do from the next state using Double DQN?
         # (Zero if episode terminated - no future rewards possible)
         with torch.no_grad():
-            best_next_actions = self.policy_net(next_states).argmax(1, keepdim=True)
+            next_q_policy = self.policy_net(next_states).clone()
+            if next_q_policy.size(1) > 1:
+                # Bloqueia a ação que acabou de ser tomada (evita ping-pong fantasma no alvo de Bellman)
+                next_q_policy.scatter_(1, actions.unsqueeze(1), -float("inf"))
+            best_next_actions = next_q_policy.argmax(1, keepdim=True)
             max_next_q = self.target_net(next_states).gather(1, best_next_actions).squeeze(1)
             future_q_value = (1 - terminateds) * max_next_q
 
@@ -235,7 +239,7 @@ def train(agent: BallsAgent, game: Game):
 
     for episode in tqdm(range(EPISODES)):
         # Curriculum Learning: começa com desafios de 1 clique e sobe até embaralhamento completo
-        progress = episode / EPISODES
+        progress = min(1, episode / (EPISODES * 0.5)) #Chegar na dificuldade máxima na metade dos episódios
         current_max_clicks = max(1, int(np.ceil(progress * max_scramble)))
         obs, info = game.reset(game.radius, scramble_clicks=current_max_clicks)
         done = False
@@ -262,7 +266,7 @@ def train(agent: BallsAgent, game: Game):
         # Reduce exploration rate (agent becomes less random over time)
         agent.decay_epsilon()
 
-        if episode % 10 == 0:
+        if episode % 200 == 0:
             agent.target_net.load_state_dict(agent.policy_net.state_dict())
 
     metrics = {

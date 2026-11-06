@@ -174,15 +174,13 @@ class Game:
 
         pivot_row = 0
 
-        def swap_row(idx_row1, idx_row2):
-            aux = augmented_matrix[idx_row1]
-            augmented_matrix[idx_row1] = augmented_matrix[idx_row2]
-            augmented_matrix[idx_row2] = aux
-
         for col in range(0, len(self.balls)):
             for r in range(pivot_row, len(self.balls)):
                 if augmented_matrix[r][col] == 1:
-                    swap_row(pivot_row, r)
+                    # Swap rows
+                    aux = augmented_matrix[pivot_row]
+                    augmented_matrix[pivot_row] = augmented_matrix[r]
+                    augmented_matrix[r] = aux
                     
                     for l in range(0, len(self.balls)):
                         if l != pivot_row and augmented_matrix[l][col] == 1:
@@ -245,7 +243,7 @@ class Game:
             # IA jogando passo a passo (1 passo a cada 300ms)
             if self.solving:
                 now = pygame.time.get_ticks()
-                if not self.is_done():
+                if not self.is_done() and self.is_solvable():
                     if now - self.last_ai_step_time >= 300:
                         actions = self.get_actions()
                         action = max_action(
@@ -298,17 +296,48 @@ class Game:
 
         return self.state, self.is_done()
 
+    def clicks_remaining(self):
+            """
+            Usa o mesmo escalonamento de is_solvable() e soma quantos pivôs têm 1
+            na última coluna (quantidade de cliques que faltam para resolver).
+            """
+            b = [0 if s == 1 else 1 for s in self.state]
+  
+            augmented_matrix = [row + [b_i] for row, b_i in zip(self.adj_matrix, b)]
+  
+            pivot_row = 0                
+  
+            for col in range(0, len(self.balls)):
+                for r in range(pivot_row, len(self.balls)):
+                    if augmented_matrix[r][col] == 1:
+                        # Swap rows
+                        aux = augmented_matrix[pivot_row]
+                        augmented_matrix[pivot_row] = augmented_matrix[r]
+                        augmented_matrix[r] = aux
+  
+                        for l in range(0, len(self.balls)):
+                            if l != pivot_row and augmented_matrix[l][col] == 1:
+                                for c in range(0, len(self.balls) + 1):
+                                    augmented_matrix[l][c] = augmented_matrix[l][c] ^ augmented_matrix[pivot_row][c] 
+  
+                        pivot_row += 1 
+                        break
+  
+            return sum(augmented_matrix[r][len(self.balls)] for r in range(0, pivot_row))
+
     def step(self, action):
-        n_black = sum(self.state)
+        dist_antes = self.clicks_remaining()
         next_state, terminated = self.play_step(action)
-        new_blacks = sum(next_state)
+        dist_depois = self.clicks_remaining()
 
         self.steps += 1
 
         if terminated:
             reward = 100
-        else:
-            reward = new_blacks - n_black - 0.5
+        elif dist_antes > dist_depois:
+            reward = 2
+        else: 
+            reward = -3
 
         truncated = False
         if self.steps >= self.max_steps:
