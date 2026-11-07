@@ -1,15 +1,15 @@
-# 🎱 Balls Pyramid — Deep Reinforcement Learning & $\mathbb{GF}(2)$ Solver
+# Balls Pyramid — Deep Reinforcement Learning & $\mathbb{GF}(2)$ Solver
 
 ![Python](https://img.shields.io/badge/Python-3.13%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-Double_DQN-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
 ![Pygame](https://img.shields.io/badge/Pygame-2.6-008000?style=for-the-badge&logo=python&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-Linear_Algebra-013243?style=for-the-badge&logo=numpy&logoColor=white)
 
-Um jogo de quebra-cabeça interativo em grade triangular (inspirado no clássico *Lights Out*) desenvolvido em **Python + Pygame**, equipado com um agente autônomo de **Aprendizado por Reforço Profundo (Double Deep Q-Network)** em **PyTorch** e um validador algébrico baseado em **Eliminação Gaussiana no Corpo Finito $\mathbb{GF}(2)$**.
+Um jogo de quebra-cabeça interativo em grade triangular (inspirado no clássico *Lights Out*) desenvolvido em **Python + Pygame** e **React**, equipado com um agente autônomo de **Aprendizado por Reforço Profundo (Double Deep Q-Network)** em **PyTorch** e um validador algébrico baseado em **Eliminação Gaussiana no Corpo Finito $\mathbb{GF}(2)$**.
 
 ---
 
-## 🎯 O Problema e o Desafio de IA
+## O Problema e o Desafio de IA
 
 O jogo consiste em uma pirâmide de base $n$ contendo $N = \frac{n(n+1)}{2}$ bolas (brancas ou pretas).
 - **Regra de transição**: Clicar em uma bola inverte a cor dela própria e de todas as bolas vizinhas dentro de um raio geométrico de $3r$.
@@ -21,17 +21,17 @@ Em uma abordagem tabular clássica, cada configuração da pirâmide é armazena
 1. **Explosão Combinatória ($2^N$ estados)**:
    | Base da Pirâmide ($n$) | Total de Bolas ($N$) | Espaço de Estados ($2^N$) | Viabilidade de Q-Table |
    | :---: | :---: | :---: | :---: |
-   | $3$ | $6$ | $64$ | ✅ Viável |
-   | $5$ | $15$ | $32.768$ | ⚠️ Lento |
-   | $6$ | $21$ | $2.097.152$ | ❌ Inviável |
-   | $8$ | $36$ | $68.719.476.736$ | ❌ Impossível em RAM |
+   | $3$ | $6$ | $64$ | Viável |
+   | $5$ | $15$ | $32.768$ | Lento |
+   | $6$ | $21$ | $2.097.152$ | Inviável |
+   | $8$ | $36$ | $68.719.476.736$ | Impossível em RAM |
 
 2. **Ausência de Generalização Espacial**: Uma Q-Table não compartilha conhecimento entre estados parecidos (ex.: mudar 1 única bola cria uma chave desconhecida).
 3. **Configurações Matematicamente Insolúveis**: Sorteios puramente aleatórios podem gerar estados que não pertencem ao espaço coluna da matriz de adjacência do grafo, prendendo agentes ingênuos em loops infinitos.
 
 ---
 
-## 🧠 Arquitetura da Solução
+## Arquitetura da Solução
 
 Para superar as limitações tabulares, o projeto combina **Álgebra Linear sobre $\mathbb{GF}(2)$** com **Deep Reinforcement Learning (Double DQN)**:
 
@@ -70,7 +70,7 @@ $$A \cdot x \equiv b \pmod 2$$
 
 ---
 
-## 📈 Curvas de Aprendizado e Convergência
+## Curvas de Aprendizado e Convergência
 
 O gráfico abaixo é gerado automaticamente ao final de `train.py` e demonstra a evolução da **Taxa de Vitória (Win Rate %)**, **Recompensa Acumulada** e redução da **Loss** durante o treinamento:
 
@@ -78,7 +78,7 @@ O gráfico abaixo é gerado automaticamente ao final de `train.py` e demonstra a
 
 ---
 
-## 🚀 Como Executar o Projeto
+## Como Executar o Projeto
 
 ### 1. Clonar o repositório e instalar dependências
 ```bash
@@ -101,14 +101,29 @@ python3 train.py
 ```
 - Treina os modelos especialistas de base `1` a `8`, salva os pesos em `dqn_model.pth` e exporta o gráfico atualizado em `assets/learning_curves.png`.
 
+### 4. Executar a Versão Web — PYRAMIDLE (React + Vite)
+O projeto inclui uma aplicação Web completa em [`web/`](web/) no estilo **Wordle / Termo** (Desafio Diário determinístico por data + Modo Livre com a sua Rede Neural rodando 100% no navegador via JSON):
+
+```bash
+# Opcional: re-exportar os pesos do dqn_model.pth para a web
+python3 export_weights.py
+
+# Iniciar o servidor web em modo de desenvolvimento
+cd web
+npm install
+npm run dev
+```
+
 ---
 
-## 📂 Estrutura de Arquivos
+## Estrutura de Arquivos
 
-| Arquivo | Descrição |
+| Arquivo / Pasta | Descrição |
 | :--- | :--- |
 | [`ballsAI.py`](ballsAI.py) | Ambiente do jogo em Pygame, matriz de adjacência, detector $\mathbb{GF}(2)$ (`is_solvable`), `QNetwork` e modo `Solve` passo a passo. |
 | [`train.py`](train.py) | Agente Double DQN, `ReplayBuffer`, *Curriculum Learning*, loop de treinamento multi-tamanho e geração dos gráficos em `assets/learning_curves.png`. |
+| [`export_weights.py`](export_weights.py) | Converte os pesos treinados em PyTorch (`dqn_model.pth`) para `web/public/dqn_weights.json`. |
+| [`web/`](web/) | Aplicação Web React (**PYRAMIDLE**): Desafio Diário por *seed* de data, estatísticas/Streak, compartilhamento e inferência da DQN no browser. |
 | [`balls.py`](balls.py) | Versão original minimalista do jogo (apenas para jogador humano). |
 | `dqn_model.pth` | Checkpoint PyTorch contendo os pesos treinados das redes neurais (`n = 1..8`). |
 | `assets/learning_curves.png` | Painel com as métricas de convergência do treinamento. |
