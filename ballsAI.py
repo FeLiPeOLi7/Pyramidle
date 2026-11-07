@@ -2,9 +2,8 @@ import pygame
 import math
 import random
 import numpy as np
-from collections import defaultdict
-import pickle
 import torch, torch.nn as nn
+import numpy as np
 
 # Cores
 white = (255, 255, 255)
@@ -160,7 +159,35 @@ class Game:
                 distance = math.hypot(dx, dy)  # Calcula a distancia de um ponto
 
                 if distance <= 3 * ball.radius:
-                     self.adj_matrix[i][j] = 1 
+                     self.adj_matrix[i][j] = 1
+        
+        # Fazendo o escalonamento a priori para guardar o resultado e ser mais eficiente
+        N = len(self.balls)
+        self.pivot_cols = []
+        
+        # Matriz aumentada [Adj | I]
+        aug = np.hstack([np.array(self.adj_matrix, dtype=np.uint8), np.eye(N, dtype=np.uint8)])        
+        pivot_row = 0
+
+        for col in range(N):
+            for r in range(pivot_row, len(self.balls)):
+                if aug[r][col] == 1:
+                    # Swap rows
+                    aug[[pivot_row, r]] = aug[[r, pivot_row]]
+                    
+                    for l in range(0, len(self.balls)):
+                        if l != pivot_row and aug[l][col] == 1:
+                            aug[l] ^= aug[pivot_row]
+                     
+                    pivot_row += 1
+                    self.pivot_cols.append(col)
+                    break
+        
+        # Guarda o resultado do escalonamento
+        self.R = aug[:, N:] 
+        self.pivot_row = pivot_row
+ 
+        
         
     def is_solvable(self):
         """
@@ -168,35 +195,19 @@ class Game:
         e b eh o vetor solucao (se uma bola precisa ser pintada ou nao). A partir disso, faz o escalonamento e verifica se
         o sistema eh consistente ou inconsistente.
         """
-        b = [0 if s == 1 else 1 for s in self.state]
+        b = np.array([0 if s == 1 else 1 for s in self.state], dtype=np.uint8)
         
-        augmented_matrix = [row + [b_i] for row, b_i in zip(self.adj_matrix, b)]
+        last_col = (self.R @ b) & 1
 
-        pivot_row = 0
+        return int(last_col[self.pivot_row:].sum()) == 0
 
-        def swap_row(idx_row1, idx_row2):
-            aux = augmented_matrix[idx_row1]
-            augmented_matrix[idx_row1] = augmented_matrix[idx_row2]
-            augmented_matrix[idx_row2] = aux
-
-        for col in range(0, len(self.balls)):
-            for r in range(pivot_row, len(self.balls)):
-                if augmented_matrix[r][col] == 1:
-                    swap_row(pivot_row, r)
-                    
-                    for l in range(0, len(self.balls)):
-                        if l != pivot_row and augmented_matrix[l][col] == 1:
-                            for c in range(0, len(self.balls) + 1):
-                                augmented_matrix[l][c] = augmented_matrix[l][c] ^ augmented_matrix[pivot_row][c]
-                    
-                    pivot_row += 1
-                    break
-                    
-        for row in augmented_matrix:
-            if sum(row[0:len(self.balls)]) == 0 and row[len(self.balls)] == 1:
-                return False
-                    
-        return True
+    def get_gf2_action(self):
+        b = np.array([0 if s == 1 else 1 for s in self.state], dtype=np.uint8)
+        ultima_coluna = (self.R @ b) & 1
+        for r in range(self.pivot_row):
+            if ultima_coluna[r] == 1:
+                return self.pivot_cols[r]  # Retorna a primeira bola que precisa ser clicada
+        return 0
 
 
     def on_loop(self):
@@ -209,7 +220,7 @@ class Game:
                 if event.type == pygame.MOUSEBUTTONUP:
                     pos = pygame.mouse.get_pos()
 
-                    if isinstance(self.q_table, nn.Module) and self.solve_button.collidepoint(pos):
+                    if self.solve_button.collidepoint(pos):
                         self.solving = True
                         self.state = self.get_state()
                         self.last_ai_step_time = pygame.time.get_ticks()
@@ -231,10 +242,9 @@ class Game:
             text_surface = self.font.render(f"Clicks: {self.clicks}", True, (0, 0, 0))
             self.screen.blit(text_surface, (10, 10))
 
-            if isinstance(self.q_table, nn.Module):
-                pygame.draw.rect(self.screen, blue, self.solve_button)
-                label = self.font.render("Solve", True, black)
-                self.screen.blit(label, (self.solve_button.x + 10, self.solve_button.y + 5))
+            pygame.draw.rect(self.screen, blue, self.solve_button)
+            label = self.font.render("Solve", True, black)
+            self.screen.blit(label, (self.solve_button.x + 10, self.solve_button.y + 5))
 
             for i, ball in enumerate(self.balls):
                 ball.draw_ball(self.screen)
@@ -242,41 +252,49 @@ class Game:
                     pygame.draw.circle(self.screen, green, (ball.x, ball.y), ball.radius, 4)
 
 
-            # IA jogando passo a passo (1 passo a cada 300ms)
+            # IA jogando passo a passo (1 passo a cada 300ms) ou utilizando Álgebra Linear para resolver problemas que explodem em relação a quantidade de combinaçoes possiveis (2^total_balls)
             if self.solving:
                 now = pygame.time.get_ticks()
-                if not self.is_done():
+                if not self.is_done() and self.is_solvable():
                     if now - self.last_ai_step_time >= 300:
-                        actions = self.get_actions()
-                        action = max_action(
-                            self.q_table,
-                            self.state,
-                            actions,
-                            len(self.balls),
-                            self.last_action,
-                            self.visited_state_actions,
-                        )
+                        if self.num_balls <= 8:
+                            actions = self.get_actions()
+                            action = max_action(
+                                self.q_table,
+                                self.state,
+                                actions,
+                                len(self.balls),
+                                self.last_action,
+                                self.visited_state_actions,
+                            )
+                        else:
+                            action = self.get_gf2_action()
+
                         self.last_ai_action = action
                         self.state, done = self.play_step(action)
                         self.clicks += 1
                         self.last_ai_step_time = now
                 else:
                     self.solving = False
+                    self.running = False
+
+                    if not self.is_done():
+                        print("Insolucionavel!")
+
+
 
             pygame.display.flip()
 
             self.clock.tick(60)
 
-    '''
-        Retorna o estado atual do jogo, 0 para bolas pretas e 1 para bolas brancas
-    '''
+    
     def get_state(self):
+        """ 
+        Retorna o estado atual do jogo, 0 para bolas pretas e 1 para bolas brancas
+        """
         return tuple(1 if ball.color == black else 0 for ball in self.balls)
     
-    def get_actions(self):
-        # actions = []
-        # for ball in self.balls:
-        #     actions.append(ball.x, ball.y)
+    def get_actions(self): 
         actions = list(range(len(self.balls)))
         
         return actions
@@ -298,17 +316,30 @@ class Game:
 
         return self.state, self.is_done()
 
+    def clicks_remaining(self):
+        """
+        Usa o mesmo escalonamento de is_solvable() e soma quantos pivôs têm 1
+        na última coluna (quantidade de cliques que faltam para resolver).
+        """
+        b = [0 if s == 1 else 1 for s in self.state]
+
+        last_col = (self.R @ b) & 1
+
+        return int(last_col[:self.pivot_row].sum())
+
     def step(self, action):
-        n_black = sum(self.state)
+        dist_antes = self.clicks_remaining()
         next_state, terminated = self.play_step(action)
-        new_blacks = sum(next_state)
+        dist_depois = self.clicks_remaining()
 
         self.steps += 1
 
         if terminated:
             reward = 100
-        else:
-            reward = new_blacks - n_black - 0.5
+        elif dist_antes > dist_depois:
+            reward = 2
+        else: 
+            reward = -3
 
         truncated = False
         if self.steps >= self.max_steps:
@@ -380,11 +411,7 @@ def main():
             print("Aviso: O arquivo 'dqn_model.pth' não foi encontrado. Rode train.py primeiro.")
         except Exception as e:
             print(f"Ocorreu um erro ao carregar o modelo: {e}")
-    else:
-        print(
-            f"Acima de {MAX_AI_BALLS} bolas na base o modo Solve automático é desativado. "
-            "Desafio por conta do jogador humano!"
-        )
+
 
     game.on_loop()
 

@@ -1,4 +1,5 @@
 from ballsAI import Game, QNetwork, max_action
+import copy
 import os
 import numpy as np
 from tqdm import tqdm
@@ -8,14 +9,14 @@ import torch, torch.nn as nn, torch.optim as optim
 import matplotlib.pyplot as plt
 
 
-EPISODES = 1500
+EPISODES = 65000
 MAX_BALLS = 8
 ALPHA = 0.001
 GAMMA = 0.95
 INITIAL_EPSILON = 1.0
 FINAL_EPSILON = 0.05
-DECAY = (INITIAL_EPSILON - FINAL_EPSILON) / (EPISODES * 0.75)
-CAPACITY = 15000
+DECAY = (INITIAL_EPSILON - FINAL_EPSILON) / (EPISODES * 0.85)
+CAPACITY = 200000
 BATCH_SZ = 64
 
 class BallsAgent:
@@ -47,7 +48,7 @@ class BallsAgent:
         
         self.lr = learning_rate
         self.optimizer = optim.Adam(self.policy_net.parameters(), self.lr)
-        self.criterion = nn.MSELoss()
+        self.criterion = nn.SmoothL1Loss()
         self.discount_factor = discount_factor  # How much we care about future rewards
 
         self.memory = ReplayBuffer(CAPACITY)
@@ -125,19 +126,24 @@ class BallsAgent:
         # What's the best we could do from the next state using Double DQN?
         # (Zero if episode terminated - no future rewards possible)
         with torch.no_grad():
-            best_next_actions = self.policy_net(next_states).argmax(1, keepdim=True)
+            next_q_policy = self.policy_net(next_states).clone()
+            if next_q_policy.size(1) > 1:
+                # Bloqueia a ação que acabou de ser tomada (evita ping-pong fantasma no alvo de Bellman)
+                next_q_policy.scatter_(1, actions.unsqueeze(1), -float("inf"))
+            best_next_actions = next_q_policy.argmax(1, keepdim=True)
             max_next_q = self.target_net(next_states).gather(1, best_next_actions).squeeze(1)
             future_q_value = (1 - terminateds) * max_next_q
 
             # What should the Q-value be? (Bellman equation)
             target_q = rewards + self.discount_factor * future_q_value
 
-        # How wrong was our current estimate? (Mean Squared Error between prediction and target)
+        # How wrong was our current estimate? (Huber / Smooth L1 Loss between prediction and target)
         loss = self.criterion(current_q, target_q)
 
         # Update neural network weights via backpropagation in the direction that reduces the error
         self.optimizer.zero_grad()
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)
         self.optimizer.step()
 
         # Track learning progress (useful for debugging)
@@ -233,9 +239,16 @@ def train(agent: BallsAgent, game: Game):
     episode_wins = []
     max_scramble = min(len(game.balls), game.num_balls + 3)
 
+    best_weights = copy.deepcopy(agent.policy_net.state_dict())
+    best_win_rate = -1.0
+    best_avg_reward = -float("inf")
+    best_episode = 0
+    eval_window = 200
+    full_difficulty_start = int(EPISODES * 0.7)
+
     for episode in tqdm(range(EPISODES)):
         # Curriculum Learning: começa com desafios de 1 clique e sobe até embaralhamento completo
-        progress = episode / EPISODES
+        progress = min(1, episode / full_difficulty_start)  # Chegar na dificuldade máxima em 70% dos episódios
         current_max_clicks = max(1, int(np.ceil(progress * max_scramble)))
         obs, info = game.reset(game.radius, scramble_clicks=current_max_clicks)
         done = False
@@ -262,15 +275,30 @@ def train(agent: BallsAgent, game: Game):
         # Reduce exploration rate (agent becomes less random over time)
         agent.decay_epsilon()
 
-        if episode % 10 == 0:
+        if episode % 200 == 0:
             agent.target_net.load_state_dict(agent.policy_net.state_dict())
+
+        # Salva o melhor checkpoint após atingir a dificuldade máxima do currículo
+        if episode >= full_difficulty_start + eval_window:
+            recent_win_rate = sum(episode_wins[-eval_window:]) / eval_window
+            recent_avg_reward = sum(episode_rewards[-eval_window:]) / eval_window
+            if (recent_win_rate, recent_avg_reward) > (best_win_rate, best_avg_reward):
+                best_win_rate = recent_win_rate
+                best_avg_reward = recent_avg_reward
+                best_episode = episode
+                best_weights = copy.deepcopy(agent.policy_net.state_dict())
+
+    print(
+        f"Melhor checkpoint (Base {game.num_balls}): "
+        f"Win Rate {best_win_rate * 100:.1f}% | Recompensa Média {best_avg_reward:.1f} (Episódio {best_episode})"
+    )
 
     metrics = {
         "rewards": episode_rewards,
         "wins": episode_wins,
         "losses": agent.training_error,
     }
-    return agent.policy_net.state_dict(), metrics
+    return best_weights, metrics
 
 if __name__ == "__main__":
     all_models = {}
