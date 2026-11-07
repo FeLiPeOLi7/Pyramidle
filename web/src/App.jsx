@@ -43,11 +43,19 @@ function loadStats() {
 }
 
 export default function App() {
+  const searchParams = useMemo(
+    () => new URLSearchParams(window.location.search),
+    []
+  );
   const todayKey = useMemo(() => getTodayKey(), []);
   const challengeNumber = useMemo(() => getChallengeNumber(todayKey), [todayKey]);
 
-  const [mode, setMode] = useState('daily');
-  const [freeNumBalls, setFreeNumBalls] = useState(5);
+  const [mode, setMode] = useState(
+    () => searchParams.get('mode') === 'free' ? 'free' : 'daily'
+  );
+  const [freeNumBalls, setFreeNumBalls] = useState(
+    () => Number(searchParams.get('size')) || 5
+  );
   const [allWeights, setAllWeights] = useState(null);
 
   const [initialState, setInitialState] = useState([]);
@@ -56,9 +64,13 @@ export default function App() {
   const [aiPar, setAiPar] = useState(4);
   const [solving, setSolving] = useState(false);
   const [usedAi, setUsedAi] = useState(false);
-  const [lastAiAction, setLastAiAction] = useState(null);
+  const [lastAiAction, setLastAiAction] = useState(() =>
+    searchParams.has('aiStep') ? Number(searchParams.get('aiStep')) : null
+  );
   const [showRadiusPreview, setShowRadiusPreview] = useState(true);
-  const [activeSlide, setActiveSlide] = useState(0);
+  const [activeSlide, setActiveSlide] = useState(
+    () => Number(searchParams.get('slide')) || 0
+  );
 
   const [stats, setStats] = useState(() => loadStats());
   const [dailyResult, setDailyResult] = useState(() => {
@@ -70,9 +82,15 @@ export default function App() {
     }
   });
 
-  const [isStatsOpen, setIsStatsOpen] = useState(false);
-  const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [isGameOverOpen, setIsGameOverOpen] = useState(false);
+  const [isStatsOpen, setIsStatsOpen] = useState(
+    () => searchParams.get('modal') === 'stats'
+  );
+  const [isHelpOpen, setIsHelpOpen] = useState(
+    () => searchParams.get('modal') === 'help'
+  );
+  const [isGameOverOpen, setIsGameOverOpen] = useState(
+    () => searchParams.get('modal') === 'gameover'
+  );
 
   const snapContainerRef = useRef(null);
   const lastActionRef = useRef(null);
@@ -94,8 +112,10 @@ export default function App() {
 
   const setupBoard = (targetMode = mode, targetSize = activeNumBalls, customSeed = null) => {
     setSolving(false);
-    setIsGameOverOpen(false);
-    setLastAiAction(null);
+    if (!searchParams.has('modal')) setIsGameOverOpen(false);
+    setLastAiAction(
+      searchParams.has('aiStep') ? Number(searchParams.get('aiStep')) : null
+    );
     setUsedAi(false);
     lastActionRef.current = null;
     visitedRef.current = new Set();
@@ -135,6 +155,18 @@ export default function App() {
     setupBoard(mode, activeNumBalls);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, activeNumBalls, allWeights]);
+
+  useEffect(() => {
+    const slideParam = Number(searchParams.get('slide'));
+    if (slideParam > 0 && snapContainerRef.current) {
+      const targetId = SLIDES[slideParam]?.id;
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'instant' });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const maxClicks = Math.max(aiPar * 2, 4);
   const solved = state.length > 0 && isDone(state);
@@ -193,12 +225,8 @@ export default function App() {
 
   useEffect(() => {
     if (!solving || solved) return;
-    const useDqn = activeNumBalls <= MAX_AI_BASE_SIZE;
     const modelForSize = allWeights ? allWeights[String(activeNumBalls)] : null;
-    if (useDqn && !modelForSize) {
-      setSolving(false);
-      return;
-    }
+    const useDqn = activeNumBalls <= MAX_AI_BASE_SIZE && Boolean(modelForSize);
 
     const timer = setTimeout(async () => {
       const stateKey = state.join('');
@@ -282,9 +310,7 @@ export default function App() {
     }
   };
 
-  const canUseAi =
-    activeNumBalls > MAX_AI_BASE_SIZE ||
-    Boolean(allWeights && allWeights[String(activeNumBalls)]);
+  const canUseAi = true;
 
   const blackCount = state.reduce((acc, v) => acc + v, 0);
 

@@ -9,7 +9,10 @@ export default function PyramidBoard({
   solved,
   showRadiusPreview,
 }) {
-  const [hoveredBall, setHoveredBall] = useState(null);
+  const [hoveredBall, setHoveredBall] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.has('hover') ? Number(params.get('hover')) : null;
+  });
   const { balls, adjMatrix, radius, width, height } = geometry;
 
   const affectedSet = new Set();

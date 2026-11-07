@@ -48,7 +48,7 @@ class BallsAgent:
         
         self.lr = learning_rate
         self.optimizer = optim.Adam(self.policy_net.parameters(), self.lr)
-        self.criterion = nn.SmoothL1Loss()
+        self.criterion = nn.MSELoss()
         self.discount_factor = discount_factor  # How much we care about future rewards
 
         self.memory = ReplayBuffer(CAPACITY)
@@ -137,13 +137,12 @@ class BallsAgent:
             # What should the Q-value be? (Bellman equation)
             target_q = rewards + self.discount_factor * future_q_value
 
-        # How wrong was our current estimate? (Huber / Smooth L1 Loss between prediction and target)
+        # How wrong was our current estimate? (Mean Squared Error between prediction and target)
         loss = self.criterion(current_q, target_q)
 
         # Update neural network weights via backpropagation in the direction that reduces the error
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.policy_net.parameters(), max_norm=1.0)
         self.optimizer.step()
 
         # Track learning progress (useful for debugging)
@@ -156,10 +155,17 @@ class BallsAgent:
 
 class ReplayBuffer():
     def __init__(self, capacity):
-        self.buffer = deque(maxlen=capacity)
+        self.capacity = capacity
+        self.buffer = []
+        self.pos = 0
 
     def push(self, state, action, reward, next_state, terminated):
-        self.buffer.append((state, action, reward, next_state, terminated))
+        item = (state, action, reward, next_state, terminated)
+        if len(self.buffer) < self.capacity:
+            self.buffer.append(item)
+        else:
+            self.buffer[self.pos] = item
+        self.pos = (self.pos + 1) % self.capacity
 
     def sample(self, batch_size):
         return random.sample(self.buffer, batch_size)

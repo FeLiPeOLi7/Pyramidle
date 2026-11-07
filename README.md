@@ -31,42 +31,36 @@ Em uma abordagem tabular clássica, cada configuração da pirâmide é armazena
 
 ---
 
+## Galeria
+
+| Desafio Diário & Alcance $3r$ | Modo Livre (Base 2–20) & Resolução Guiada |
+| :---: | :---: |
+| ![Desafio Diário e Preview do Alcance](assets/web_daily.png) | ![Modo Livre e Passo Automático da IA](assets/web_free_solver.png) |
+| **Slides Interativos (IA vs. Matemática)** | **Limite de Cliques ($2\times$ Par) & Fim de Jogo** |
+| ![Explicação IA vs Matemática](assets/web_slides.png) | ![Modal de Limite de Cliques](assets/web_gameover.png) |
+
+---
+
 ## Arquitetura da Solução
 
 Para superar as limitações tabulares, o projeto combina **Álgebra Linear sobre $\mathbb{GF}(2)$** com **Deep Reinforcement Learning (Double DQN)**:
 
-```mermaid
-flowchart LR
-    subgraph Ambiente ["Ambiente (Gymnasium-like)"]
-        Reset["Sorteio Inicial / Curriculum"] --> GF2["Validador Linear GF(2)<br/>Eliminação Gaussiana Mod 2"]
-        GF2 --> State["Estado s ∈ {0, 1}^N"]
-    end
-
-    subgraph Agente ["Agente Double DQN (PyTorch)"]
-        State --> MLP["QNetwork (MLP)<br/>N → 128 → 128 → N"]
-        MLP --> Mask["Prevenção de Ciclos<br/>(Estado-Ação Visitados)"]
-        Mask --> Action["Ação a = argmax Q(s, a)"]
-    end
-
-    Action -->|Inverte vizinhança ≤ 3r| State
-```
-
-### 1. Detector de Solucionabilidade via Álgebra Linear em $\mathbb{GF}(2)$
+### 1. Detector e Resolvedor via Álgebra Linear em $\mathbb{GF}(2)$
 Como a ordem dos cliques é comutativa e clicar duas vezes na mesma bola anula a operação ($1 \oplus 1 = 0$), o jogo pode ser modelado como um sistema linear binário:
 
 $$A \cdot x \equiv b \pmod 2$$
 
 - $A \in \{0, 1\}^{N \times N}$: Matriz de adjacência pré-calculada onde $A_{i,j} = 1 \iff \text{dist}(i, j) \le 3r$.
 - $b \in \{0, 1\}^N$: Vetor indicando quais bolas estão brancas no estado atual ($b_i = 1 \oplus s_i$).
-- A função `is_solvable()` aplica **Eliminação Gaussiana com `XOR` (`^`)** na matriz aumentada $[A \mid b]$ para garantir que nenhum episódio de treino ou partida humana comece em um estado matematicamente impossível.
+- A matriz aumentada $[A \mid I]$ é escalonada a priori via **Eliminação de Gauss-Jordan com `XOR` (`^`)**, gerando a matriz de transformação $R$. Isso garante em tempo $O(N^2)$ que nenhum episódio comece insolúvel (`is_solvable()`), fornece a distância exata de cliques restantes (`clicks_remaining()`) e atua como resolvedor passo a passo para pirâmides gigantes ($n = 9 \dots 20$).
 
 ### 2. Deep Q-Network (Double DQN) + Curriculum Learning
 - **Arquitetura da Rede (`QNetwork`)**: Multilayer Perceptron (`Linear(N, 128) → ReLU → Linear(128, 128) → ReLU → Linear(128, N)`) que recebe o vetor binário do tabuleiro e estima simultaneamente o valor $Q(s, a)$ de clicar em cada bola.
-- **Double DQN & Experience Replay**: Utiliza um `ReplayBuffer` circular de $15.000$ transições e duas redes (*Policy Network* e *Target Network*) para evitar superestimação dos valores $Q$:
+- **Double DQN & Experience Replay**: Utiliza um `ReplayBuffer` de $200.000$ transições e duas redes (*Policy Network* e *Target Network*) com **Huber Loss (`SmoothL1Loss`)** e **Gradient Clipping** para evitar superestimação e *Catastrophic Forgetting*:
   $$y = r + \gamma (1 - \text{done}) \, Q_{\text{target}}\!\left(s', \arg\max_{a'} Q_{\text{policy}}(s', a')\right)$$
-- **Reward Shaping**: Recompensa densa baseada no saldo de bolas convertidas no passo ($\Delta \text{pretas} - 0.5$) somada ao bônus terminal de $+100$ ao solucionar a pirâmide.
-- **Curriculum Learning**: O treinamento inicia com tabuleiros embaralhados a poucos cliques da solução e aumenta progressivamente a entropia até sorteios 100% aleatórios, permitindo convergir em pirâmides maiores ($n = 5 \dots 8$).
-- **Prevenção Inteligente de Ciclos**: Impede cliques duplos imediatamente consecutivos e evita repetir a mesma ação caso o tabuleiro retorne a uma fotografia de estado idêntica já visitada, mantendo total liberdade para o humano (e para a IA) clicarem na mesma bola ao longo da partida para corrigir erros.
+- **Reward Shaping Algébrico**: Recompensa guiada pela redução da distância algébrica em $\mathbb{GF}(2)$ (`clicks_remaining`) somada ao bônus terminal de $+100$ ao solucionar a pirâmide.
+- **Curriculum Learning & Best Checkpoint**: O treinamento inicia com tabuleiros a 1 clique da solução e escala progressivamente até o embaralhamento completo, salvando automaticamente o checkpoint de maior taxa de vitória na dificuldade máxima.
+- **Inferência no Navegador via ONNX Runtime Web**: Os modelos treinados em PyTorch são exportados para `.onnx` (`export_weights.py`) e executados diretamente no navegador via WebAssembly (`onnxruntime-web`).
 
 ---
 
@@ -92,8 +86,8 @@ pip install -r requirements.txt
 python3 ballsAI.py
 ```
 - Escolha o número de bolas na base da pirâmide:
-  - **De `1` até `8` bolas na base**: Você pode jogar manualmente clicando nas bolas ou clicar no botão azul **Solve** para assistir à Rede Neural resolvendo passo a passo (com destaque visual em verde a cada clique).
-  - **Acima de `8` bolas na base**: Modo **Desafio Humano** (o botão *Solve* é ocultado e a resolução fica 100% a cargo do jogador).
+  - **De `1` até `8` bolas na base**: Resolução passo a passo via **Rede Neural (Double DQN)**.
+  - **Acima de `8` bolas na base (`9` a `20`)**: Resolução passo a passo via **Solver Algébrico em $\mathbb{GF}(2)$**.
 
 ### 3. Re-treinar os Modelos e Gerar os Gráficos (`train.py`)
 ```bash
@@ -101,11 +95,11 @@ python3 train.py
 ```
 - Treina os modelos especialistas de base `1` a `8`, salva os pesos em `dqn_model.pth` e exporta o gráfico atualizado em `assets/learning_curves.png`.
 
-### 4. Executar a Versão Web — PYRAMIDLE (React + Vite)
-O projeto inclui uma aplicação Web completa em [`web/`](web/) no estilo **Wordle / Termo** (Desafio Diário determinístico por data + Modo Livre com a sua Rede Neural rodando 100% no navegador via JSON):
+### 4. Executar a Versão Web — PYRAMIDLE (React + Vite + ONNX Runtime Web)
+O projeto inclui uma aplicação Web completa em [`web/`](web/) com **Desafio Diário** (alternando entre bases 5, 6, 7 e 8) e **Modo Livre** (bases de 2 até 20 bolas), executando a Rede Neural diretamente no navegador via **ONNX Runtime Web**:
 
 ```bash
-# Opcional: re-exportar os pesos do dqn_model.pth para a web
+# Exportar os modelos de dqn_model.pth para arquivos .onnx em web/public/
 python3 export_weights.py
 
 # Iniciar o servidor web em modo de desenvolvimento
@@ -120,10 +114,10 @@ npm run dev
 
 | Arquivo / Pasta | Descrição |
 | :--- | :--- |
-| [`ballsAI.py`](ballsAI.py) | Ambiente do jogo em Pygame, matriz de adjacência, detector $\mathbb{GF}(2)$ (`is_solvable`), `QNetwork` e modo `Solve` passo a passo. |
-| [`train.py`](train.py) | Agente Double DQN, `ReplayBuffer`, *Curriculum Learning*, loop de treinamento multi-tamanho e geração dos gráficos em `assets/learning_curves.png`. |
-| [`export_weights.py`](export_weights.py) | Converte os pesos treinados em PyTorch (`dqn_model.pth`) para `web/public/dqn_weights.json`. |
-| [`web/`](web/) | Aplicação Web React (**PYRAMIDLE**): Desafio Diário por *seed* de data, estatísticas/Streak, compartilhamento e inferência da DQN no browser. |
+| [`ballsAI.py`](ballsAI.py) | Ambiente do jogo em Pygame, matriz de adjacência pré-escalonada em $\mathbb{GF}(2)$, `QNetwork` e modo `Solve` passo a passo. |
+| [`train.py`](train.py) | Agente Double DQN (Huber Loss + Gradient Clipping), `ReplayBuffer`, *Curriculum Learning* e geração de `assets/learning_curves.png`. |
+| [`export_weights.py`](export_weights.py) | Exporta os modelos PyTorch (`dqn_model.pth`) para formato `.onnx` (`web/public/model_1.onnx` ... `model_8.onnx`). |
+| [`web/`](web/) | Aplicação Web React (**PYRAMIDLE**): Desafio Diário, estatísticas/Streak, limite de cliques ($2\times$ Par) e inferência via ONNX Runtime Web + $\mathbb{GF}(2)$. |
 | [`balls.py`](balls.py) | Versão original minimalista do jogo (apenas para jogador humano). |
 | `dqn_model.pth` | Checkpoint PyTorch contendo os pesos treinados das redes neurais (`n = 1..8`). |
-| `assets/learning_curves.png` | Painel com as métricas de convergência do treinamento. |
+| `assets/` | Curvas de convergência do treinamento (`learning_curves.png`) e capturas da interface web. |

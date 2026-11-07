@@ -30,6 +30,7 @@ export default function StatsModal({
       `Cliques: ${clicksUsed} | Referência: ${aiPar}`,
       statusLine,
       `Sequência: ${stats.currentStreak} dia(s)`,
+      window.location.origin,
     ].join('\n');
 
     navigator.clipboard.writeText(shareText);
