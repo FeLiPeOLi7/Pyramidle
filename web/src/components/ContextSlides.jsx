@@ -58,11 +58,11 @@ export default function ContextSlides({ onBackToGame }) {
             Dois cérebros diferentes para resolver a pirâmide
           </h2>
           <p className="slide-lead">
-            Até <strong>8 bolas na base</strong>, quem joga no botão de resolução é uma{' '}
-            <strong>Rede Neural (Double DQN)</strong> que aprendeu sozinha tentando e
-            errando. A partir de <strong>9 bolas na base</strong> (onde as combinações
-            passam dos trilhões), o <strong>Resolvedor Algébrico em GF(2)</strong>{' '}
-            assume para encarar pirâmides gigantes.
+            Até <strong>6 bolas na base</strong> (21 bolas no total, 2 milhões de estados),
+            quem joga no botão de resolução é uma <strong>Rede Neural (Double DQN)</strong> com 100%
+            de taxa de vitória. A partir de <strong>7 bolas na base</strong> (onde a complexidade
+            combinatória explode para bilhões e trilhões de combinações e 20 paridades globais),
+            o <strong>Resolvedor Algébrico em GF(2)</strong> assume para garantir solução ótima instantânea.
           </p>
 
           <div className="ai-architecture-row">
@@ -87,9 +87,9 @@ export default function ContextSlides({ onBackToGame }) {
             <div className="mini-spec">
               <strong>Rodando direto no seu navegador</strong>
               <span>
-                Os modelos treinados em PyTorch foram exportados para ONNX e rodam 100%
+                Os modelos especialistas treinados em PyTorch foram exportados para ONNX e rodam 100%
                 no seu dispositivo em tempo real, lado a lado com o motor matemático
-                para as pirâmides maiores (9 a 20 bolas).
+                para as pirâmides maiores (7 a 20 bolas).
               </span>
             </div>
           </div>

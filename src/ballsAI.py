@@ -233,9 +233,8 @@ class Game:
                         if ball.ball_clicked(pos):  # Verifica se a bola foi clicada
                             self.clicks += 1
                             self.last_ai_action = None
-                            self.last_action = idx
-                            self.change_adjacent_balls_color(pos)
-                            self.state = self.get_state()
+                            # Usa a matriz de adjacência (centro da bola), igual à IA e ao treino
+                            self.play_step(idx)
                             break
 
             self.screen.fill("red")
@@ -257,7 +256,7 @@ class Game:
                 now = pygame.time.get_ticks()
                 if not self.is_done() and self.is_solvable():
                     if now - self.last_ai_step_time >= 300:
-                        if self.num_balls <= 8:
+                        if self.num_balls <= 6:
                             actions = self.get_actions()
                             action = max_action(
                                 self.q_table,
@@ -266,6 +265,7 @@ class Game:
                                 len(self.balls),
                                 self.last_action,
                                 self.visited_state_actions,
+                                self.adj_matrix
                             )
                         else:
                             action = self.get_gf2_action()
@@ -325,7 +325,7 @@ class Game:
 
         last_col = (self.R @ b) & 1
 
-        return int(last_col[:self.pivot_row].sum())
+        return int(last_col[:self.pivot_row].sum()) 
 
     def step(self, action):
         dist_antes = self.clicks_remaining()
@@ -347,8 +347,15 @@ class Game:
 
         return next_state, reward, terminated, truncated, {}
 
+def simulate_click(state, adj_matrix, action):                                                                                                                                              
+    """
+    Retorna o novo estado após clicar em 'action' usando XOR com a linha da matriz de adjacência.
+    """
+    row = adj_matrix[action]                                                                                                                                                                                                         
+    return tuple((state[i] + row[i])%2 for i in range(len(state))) 
 
-def max_action(model, state, actions, qtd_balls, last_action=None, visited_state_actions=None):
+
+def max_action(model, state, actions, qtd_balls, last_action=None, visited_state_actions=None, adj_matrix=None, k_beam=12):
     if isinstance(model, nn.Module):
         state_tensor = torch.tensor(state, dtype=torch.float32)
         with torch.no_grad():
@@ -368,7 +375,51 @@ def max_action(model, state, actions, qtd_balls, last_action=None, visited_state
                 if torch.max(masked_q) > -float("inf"):
                     q_values = masked_q
 
-        return int(torch.argmax(q_values).item())
+        
+        if adj_matrix is None or len(actions) <= 1:
+            return int(torch.argmax(q_values).item())
+        
+        """
+        # Look Ahead
+        O restante do código visa responder a seguinte pergunta: Qual clique mais me aproxima da resposta no longo prazo?
+
+        Basicamente, forçamos o modelo a simular 2 passos futuros (dado que ele tem muita dificuldade de responder soluções que exigem muitos cliques de forma direta),
+        isso nos permite ter uma melhor aproximação da resposta correta, pois o modelo tem mais facilidade de resolver problemas que só faltam 1 clique 
+        de problemas que só faltam 2 cliques e etc.
+        """
+        
+
+        top1_actions = torch.topk(q_values, min(k_beam, len(actions))).indices.tolist()                                                                                                         
+        best_first_action = top1_actions[0]
+        best_score = -float("inf") 
+
+        with torch.no_grad():
+            for a1 in top1_actions:
+                s1 = simulate_click(state, adj_matrix, a1)
+                # Se todas estão pretas, é por quê a ação a1 é a melhor
+                if all([c == 1 for c in s1]):
+                    return a1
+                
+                q2 = model(torch.tensor(s1, dtype=torch.float32)).clone()
+                q2[a1] = -float("inf")
+                top2_actions = torch.topk(q2, min(k_beam, len(actions))).indices.tolist() 
+
+                for a2 in top2_actions:
+                    s2 = simulate_click(s1, adj_matrix, a2)
+                    # Se todas estão pretas, é por quê a ação que leva a a2 é a melhor
+                    if all([c == 1 for c in s2]):
+                        return a1
+                
+                    q3 = model(torch.tensor(s2, dtype=torch.float32)).clone()
+                    q3[a2] = -float("inf")
+                    score = torch.max(q3).item() 
+
+                    if score > best_score:
+                        best_score = score
+                        best_first_action = a1
+
+        return int(best_first_action)
+
 
     return random.choice(actions)
 
@@ -388,7 +439,7 @@ class QNetwork(nn.Module):
         return self.model(x)
 
 
-MAX_AI_BALLS = 8
+MAX_AI_BALLS = 6
 
 
 def main():

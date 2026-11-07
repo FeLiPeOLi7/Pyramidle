@@ -24,7 +24,7 @@ import {
 } from './engine/seededRng';
 
 const DAILY_BASE_SIZES = [5, 6, 7, 8];
-const MAX_AI_BASE_SIZE = 8;
+const MAX_AI_BASE_SIZE = 6;
 const STORAGE_STATS_KEY = 'pyramidle_stats_v1';
 const STORAGE_DAILY_PREFIX = 'pyramidle_daily_';
 
@@ -237,7 +237,8 @@ export default function App() {
           modelForSize,
           state,
           lastActionRef.current,
-          visitedRef.current
+          visitedRef.current,
+          geometry.adjMatrix
         );
         action = res.action;
       } else {

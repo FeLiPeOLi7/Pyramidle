@@ -239,7 +239,6 @@ def plot_learning_curves(metrics_by_size, output_path="assets/learning_curves.pn
     plt.close(fig)
     print(f"Gráfico de aprendizado salvo em '{output_path}'!")
 
-
 def train(agent: BallsAgent, game: Game):
     episode_rewards = []
     episode_wins = []
@@ -314,7 +313,7 @@ if __name__ == "__main__":
     )
     metrics_by_size = {}
 
-    for n in range(6, MAX_BALLS + 1):
+    for n in range(1, MAX_BALLS + 1):
         print(f"\nTreinando modelo para pirâmide de base {n} ({n * (n + 1) // 2} bolas)...")
         game = Game(num_balls=n)
         agent = BallsAgent(game, ALPHA, INITIAL_EPSILON, DECAY, FINAL_EPSILON)

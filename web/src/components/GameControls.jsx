@@ -54,7 +54,7 @@ export default function GameControls({
             <span className="size-title">Base da Pirâmide: {numBalls}</span>
             <span className="size-desc">
               {totalBalls} bolas no total •{' '}
-              {numBalls <= 8
+              {numBalls <= 6
                 ? 'Resolvedor automático: Rede Neural (IA)'
                 : 'Resolvedor automático: Álgebra Linear GF(2)'}
             </span>
