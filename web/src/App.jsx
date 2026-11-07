@@ -5,6 +5,7 @@ import GameControls from './components/GameControls';
 import ContextSlides from './components/ContextSlides';
 import StatsModal from './components/StatsModal';
 import HelpModal from './components/HelpModal';
+import Footer from './components/Footer';
 import {
   applyAction,
   createPyramidGeometry,
@@ -380,15 +381,7 @@ export default function App() {
           />
         </main>
 
-        <div className="scroll-hint-bar">
-          <button
-            type="button"
-            className="scroll-down-btn"
-            onClick={() => scrollToSlide(1)}
-          >
-            Entenda a matemática e o algoritmo de resolução ↓
-          </button>
-        </div>
+        <Footer onScrollToMath={() => scrollToSlide(1)} />
       </section>
 
       {/* Slides 2, 3 e 4: Contexto e Engenharia */}

@@ -588,11 +588,87 @@ body {
   color: var(--text-muted);
 }
 
-/* Rodapé do Slide do Jogo */
-.scroll-hint-bar {
-  text-align: center;
-  padding: 0.55rem;
+/* Rodapé Pequeno e Simples (App Footer) */
+.app-footer {
+  width: 100%;
+  padding: 0.45rem 1.25rem;
   border-top: 1px solid rgba(51, 65, 85, 0.35);
+  background: rgba(9, 13, 22, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.footer-inner {
+  max-width: 880px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.footer-side {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.footer-left {
+  justify-content: flex-start;
+}
+
+.footer-right {
+  justify-content: flex-end;
+}
+
+.footer-brand {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  opacity: 0.55;
+  user-select: none;
+}
+
+.github-footer-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.github-footer-link:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.github-footer-link .github-icon {
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+.github-footer-link:hover .github-icon {
+  transform: scale(1.1);
+}
+
+.github-slide-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.github-slide-btn:hover {
+  color: var(--text-main);
+  border-color: var(--accent-blue);
 }
 
 .scroll-down-btn {
@@ -604,6 +680,7 @@ body {
   cursor: pointer;
   letter-spacing: 0.02em;
   transition: color 0.15s ease;
+  white-space: nowrap;
 }
 
 .scroll-down-btn:hover {
@@ -770,7 +847,10 @@ body {
 .slide-footer-action {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
   margin-top: 0.25rem;
+  flex-wrap: wrap;
 }
 
 /* Modals */
@@ -1068,5 +1148,21 @@ body {
     gap: 0.6rem;
     font-size: 0.72rem;
     flex-wrap: wrap;
+  }
+
+  .footer-brand {
+    display: none;
+  }
+
+  .app-footer {
+    padding: 0.35rem 0.75rem;
+  }
+
+  .footer-inner {
+    justify-content: space-between;
+  }
+
+  .scroll-down-btn {
+    font-size: 0.72rem;
   }
 }
