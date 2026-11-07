@@ -1,1 +1,7 @@
 pygame
+numpy
+torch
+tqdm
+matplotlib
+gymnasium
+onnx

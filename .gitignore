@@ -1,2 +1,6 @@
 *.pkl
+*.onnx
 __pycache__
+*.pth
+*.png
+assets/
