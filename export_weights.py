@@ -1,30 +1,31 @@
 import json
 import os
 import torch
+from ballsAI import QNetwork
 
-
-def export_weights(pth_path="dqn_model.pth", output_path="web/public/dqn_weights.json"):
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+def export_weights(pth_path="dqn_model.pth", output_dir="web/public"):
+    os.makedirs(output_dir, exist_ok=True)
     checkpoint = torch.load(pth_path, map_location="cpu", weights_only=True)
 
-    exported = {}
     for n, state_dict in checkpoint.items():
-        layers = {}
-        for key, tensor in state_dict.items():
-            # Arredonda para 5 casas decimais para manter o JSON leve na web
-            layers[key] = [
-                [round(float(v), 5) for v in row]
-                if tensor.ndim == 2
-                else round(float( row), 5)
-                for row in tensor.tolist()
-            ]
-        exported[str(n)] = layers
+        total_balls = (n * (n + 1)) // 2 # soma dos M primeiros naturais
+        
+        model = QNetwork(total_balls)
 
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(exported, f, separators=(",", ":"))
+        model.load_state_dict(state_dict)
+        model.eval()
 
-    size_kb = os.path.getsize(output_path) / 1024
-    print(f"Pesos exportados com sucesso para '{output_path}' ({size_kb:.1f} KB)!")
+        dummy_input = torch.zeros(1, total_balls, dtype=torch.float32)
+
+
+        torch.onnx.export(
+            model,                        
+            dummy_input,                  
+            f"{output_dir}/model_{n}.onnx",   
+            input_names=["state"],      
+            output_names=["q_values"],    
+            dynamo=False,                 
+        )
 
 
 if __name__ == "__main__":

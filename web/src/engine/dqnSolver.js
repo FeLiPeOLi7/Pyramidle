@@ -1,50 +1,40 @@
 import { applyAction, isDone } from './pyramid';
+import * as ort from 'onnxruntime-web';
 
-/**
- * Executa o forward pass da QNetwork (Linear -> ReLU -> Linear -> ReLU -> Linear)
- * diretamente no navegador usando os pesos exportados do PyTorch.
- */
-function linearLayer(input, weight, bias) {
-  const outFeatures = weight.length;
-  const inFeatures = input.length;
-  const output = new Float32Array(outFeatures);
+const MAX_BASE = 8
 
-  for (let i = 0; i < outFeatures; i++) {
-    let sum = bias[i];
-    const wRow = weight[i];
-    for (let j = 0; j < inFeatures; j++) {
-      sum += wRow[j] * input[j];
+export async function loadAllDqnSessions(maxBase = MAX_BASE) {
+    const sessions = {};
+    for (let n = 1; n <= maxBase; n++) {
+      try {
+        sessions[String(n)] = await ort.InferenceSession.create(`/model_${n}.onnx`);
+      } catch (err) {
+        console.warn(`Modelo /model_${n}.onnx não encontrado ou ainda não treinado.`);
+      }
     }
-    output[i] = sum;
-  }
-  return output;
+    return sessions;
 }
 
-function relu(vec) {
-  const out = new Float32Array(vec.length);
-  for (let i = 0; i < vec.length; i++) {
-    out[i] = vec[i] > 0 ? vec[i] : 0;
-  }
-  return out;
-}
-
-export function forwardQNetwork(state, modelWeights) {
-  const h1 = relu(linearLayer(state, modelWeights['model.0.weight'], modelWeights['model.0.bias']));
-  const h2 = relu(linearLayer(h1, modelWeights['model.2.weight'], modelWeights['model.2.bias']));
-  const qValues = linearLayer(h2, modelWeights['model.4.weight'], modelWeights['model.4.bias']);
-  return Array.from(qValues);
-}
 
 /**
- * Escolhe a melhor ação da DQN com proteção contra ping-pong imediato e repetição de estado visitado
- */
-export function selectDqnAction(
-  modelWeights,
+  * Escolhe a melhor ação da DQN rodando o modelo .onnx no navegador
+  * com proteção contra ping-pong imediato e repetição de estado visitado
+*/
+export async function selectDqnAction(
+  session,
   state,
   lastAction = null,
   visitedStateActions = new Set()
 ) {
-  const qValues = forwardQNetwork(state, modelWeights);
+  const inputTensor = new ort.Tensor(
+    'float32',
+    Float32Array.from(state),
+    [1, state.length]
+  );
+
+  const output = await session.run({ state: inputTensor });
+  const qValues = Array.from(output.q_values.data);
+
   const n = qValues.length;
   const stateKey = state.join('');
 
@@ -79,8 +69,8 @@ export function selectDqnAction(
 /**
  * Simula silenciosamente a resolução pela DQN para obter a "Meta da IA (Par)" do desafio
  */
-export function computeAiBenchmark(modelWeights, initialState, adjMatrix, fallbackClicks = 4) {
-  if (!modelWeights) return fallbackClicks;
+export async function computeAiBenchmark(session, initialState, adjMatrix, fallbackClicks = 4) {
+  if (!session) return fallbackClicks;
 
   let state = [...initialState];
   let lastAction = null;
@@ -90,7 +80,7 @@ export function computeAiBenchmark(modelWeights, initialState, adjMatrix, fallba
   for (let step = 1; step <= maxSteps; step++) {
     if (isDone(state)) return step - 1;
     const stateKey = state.join('');
-    const { action } = selectDqnAction(modelWeights, state, lastAction, visited);
+    const { action } = await selectDqnAction(session, state, lastAction, visited);
     visited.add(`${stateKey}:${action}`);
     lastAction = action;
     state = applyAction(state, adjMatrix, action);

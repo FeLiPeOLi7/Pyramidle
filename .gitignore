@@ -1,3 +1,4 @@
 *.pkl
+*.onnx
 __pycache__
 *.pth

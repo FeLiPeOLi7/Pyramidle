@@ -11,14 +11,18 @@ import {
   generatePuzzleState,
   isDone,
 } from './engine/pyramid';
-import { computeAiBenchmark, selectDqnAction } from './engine/dqnSolver';
+import { 
+  computeAiBenchmark, 
+  loadAllDqnSessions, 
+  selectDqnAction 
+} from './engine/dqnSolver';
 import {
   createSeededRng,
   getChallengeNumber,
   getTodayKey,
 } from './engine/seededRng';
 
-const DAILY_BASE_SIZE = 5;
+const DAILY_BASE_SIZES = [5, 6, 7, 8];
 const MAX_AI_BASE_SIZE = 8;
 const STORAGE_STATS_KEY = 'pyramidle_stats_v1';
 const STORAGE_DAILY_PREFIX = 'pyramidle_daily_';
@@ -72,17 +76,18 @@ export default function App() {
   const lastActionRef = useRef(null);
   const visitedRef = useRef(new Set());
 
-  const activeNumBalls = mode === 'daily' ? DAILY_BASE_SIZE : freeNumBalls;
+  const dailyBaseSize =
+    DAILY_BASE_SIZES[(challengeNumber - 1) % DAILY_BASE_SIZES.length];
+  const activeNumBalls = mode === 'daily' ? dailyBaseSize : freeNumBalls;
   const geometry = useMemo(
     () => createPyramidGeometry(activeNumBalls, 760, 420),
     [activeNumBalls]
   );
 
   useEffect(() => {
-    fetch('/dqn_weights.json')
-      .then((res) => res.json())
-      .then((data) => setAllWeights(data))
-      .catch((err) => console.error('Erro ao carregar dqn_weights.json:', err));
+    loadAllDqnSessions(MAX_AI_BASE_SIZE)
+      .then((sessions) => setAllWeights(sessions))
+      .catch((err) => console.error('Erro ao carregar modelos ONNX:', err));
   }, []);
 
   const setupBoard = (targetMode = mode, targetSize = activeNumBalls, customSeed = null) => {
@@ -95,16 +100,19 @@ export default function App() {
     const geom = createPyramidGeometry(targetSize, 760, 420);
     const rng =
       targetMode === 'daily'
-        ? createSeededRng(`PYRAMIDLE-${todayKey}`)
+        ? createSeededRng(`PYRAMIDLE-${todayKey}-BASE-${targetSize}`)
         : customSeed
         ? createSeededRng(customSeed)
         : Math.random;
 
-    const scrambleDepth = Math.min(targetSize, 5);
+    const scrambleDepth = Math.min(geom.balls.length, targetSize + 3);
+    const minRequiredClicks =
+      targetSize <= 2 ? 1 : Math.min(targetSize - 1, 7);
     const { initialState: generated, optimalHintClicks } = generatePuzzleState(
       geom.adjMatrix,
       rng,
-      scrambleDepth
+      scrambleDepth,
+      minRequiredClicks
     );
 
     setInitialState(generated);
@@ -117,8 +125,7 @@ export default function App() {
       generated,
       geom.adjMatrix,
       optimalHintClicks
-    );
-    setAiPar(benchmark);
+    ).then((benchmark) => setAiPar(benchmark));
   };
 
   useEffect(() => {
@@ -181,9 +188,9 @@ export default function App() {
       return;
     }
 
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       const stateKey = state.join('');
-      const { action } = selectDqnAction(
+      const { action } = await selectDqnAction(
         modelForSize,
         state,
         lastActionRef.current,

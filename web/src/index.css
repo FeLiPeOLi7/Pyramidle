@@ -477,6 +477,19 @@ body {
   color: var(--text-muted);
 }
 
+.size-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.size-slider {
+  width: 110px;
+  accent-color: var(--accent-blue);
+  cursor: pointer;
+}
+
 .size-buttons {
   display: flex;
   gap: 0.3rem;

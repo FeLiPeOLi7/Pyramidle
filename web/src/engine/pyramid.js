@@ -80,6 +80,43 @@ export function isSolvable(adjMatrix, state) {
   return true;
 }
 
+export function clicksRemaining(adjMatrix, state) {
+  const n = state.length;
+  const b = state.map((s) => (s === 1 ? 0 : 1));
+  const aug = adjMatrix.map((row, i) => [...row, b[i]]);
+
+  let pivotRow = 0;
+  for (let col = 0; col < n; col++) {
+    let found = -1;
+    for (let r = pivotRow; r < n; r++) {
+      if (aug[r][col] === 1) {
+        found = r;
+        break;
+      }
+    }
+    if (found === -1) continue;
+
+    const tmp = aug[pivotRow];
+    aug[pivotRow] = aug[found];
+    aug[found] = tmp;
+
+    for (let l = 0; l < n; l++) {
+      if (l !== pivotRow && aug[l][col] === 1) {
+        for (let c = 0; c <= n; c++) {
+          aug[l][c] ^= aug[pivotRow][c];
+        }
+      }
+    }
+    pivotRow++;
+  }
+
+  let sum = 0;
+  for (let r = 0; r < pivotRow; r++) {
+    sum += aug[r][n];
+  }
+  return sum;
+}
+
 export function applyAction(state, adjMatrix, action) {
   const row = adjMatrix[action];
   return state.map((val, idx) => (row[idx] === 1 ? val ^ 1 : val));
@@ -89,17 +126,24 @@ export function isDone(state) {
   return state.every((v) => v === 1);
 }
 
-export function generatePuzzleState(adjMatrix, rng = Math.random, scrambleClicks = 4) {
+export function generatePuzzleState(
+  adjMatrix,
+  rng = Math.random,
+  scrambleClicks = 8,
+  minClicks = 2
+) {
   const n = adjMatrix.length;
   const maxK = Math.min(scrambleClicks, n);
+  const minK = Math.min(maxK, Math.max(1, minClicks));
 
-  while (true) {
+  for (let attempt = 0; attempt < 200; attempt++) {
     let state = Array(n).fill(1);
     const chosen = new Set();
-    const targetK = Math.max(2, Math.min(maxK, Math.floor(rng() * (maxK - 1)) + 2));
+    const targetK =
+      minK + Math.floor(rng() * Math.max(1, maxK - minK + 1));
 
     let safety = 0;
-    while (chosen.size < targetK && safety < 100) {
+    while (chosen.size < targetK && safety < 200) {
       chosen.add(Math.floor(rng() * n));
       safety++;
     }
@@ -109,7 +153,16 @@ export function generatePuzzleState(adjMatrix, rng = Math.random, scrambleClicks
     }
 
     if (!isDone(state) && isSolvable(adjMatrix, state)) {
-      return { initialState: state, optimalHintClicks: chosen.size };
+      const dist = clicksRemaining(adjMatrix, state);
+      if (dist >= minK || attempt > 60) {
+        return { initialState: state, optimalHintClicks: dist };
+      }
     }
   }
+
+  let fallback = applyAction(Array(n).fill(1), adjMatrix, 0);
+  return {
+    initialState: fallback,
+    optimalHintClicks: clicksRemaining(adjMatrix, fallback),
+  };
 }

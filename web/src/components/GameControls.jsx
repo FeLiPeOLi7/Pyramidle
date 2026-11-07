@@ -30,7 +30,7 @@ export default function GameControls({
         <div className="metric-box">
           <span className="metric-label">Referência (Par)</span>
           <strong className="metric-value accent">
-            {canUseAi ? `${aiPar} cliques` : 'Livre'}
+            {`${aiPar} cliques`}
           </strong>
         </div>
 
@@ -52,24 +52,53 @@ export default function GameControls({
             <span className="size-desc">
               {totalBalls} bolas no total •{' '}
               {numBalls <= 8
-                ? 'Resolução automática disponível'
-                : 'Acima de 8 bolas: somente resolução manual'}
+                ? 'Resolução automática (IA) disponível'
+                : 'Acima de 8 bolas: desafio manual (par calculado via GF(2))'}
             </span>
           </div>
-          <div className="size-buttons">
-            {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-              <button
-                key={n}
-                type="button"
-                disabled={solving}
-                className={`size-btn ${numBalls === n ? 'active' : ''} ${
-                  n > 8 ? 'human-only' : ''
-                }`}
-                onClick={() => onChangeNumBalls(n)}
-              >
-                {n}
-              </button>
-            ))}
+          <div className="size-controls-right">
+            <button
+              type="button"
+              disabled={solving || numBalls <= 2}
+              className="size-btn"
+              onClick={() => onChangeNumBalls(Math.max(2, numBalls - 1))}
+              title="Diminuir base"
+            >
+              −
+            </button>
+            <input
+              type="range"
+              min={2}
+              max={20}
+              value={numBalls}
+              disabled={solving}
+              onChange={(e) => onChangeNumBalls(Number(e.target.value))}
+              className="size-slider"
+            />
+            <button
+              type="button"
+              disabled={solving || numBalls >= 20}
+              className="size-btn"
+              onClick={() => onChangeNumBalls(Math.min(20, numBalls + 1))}
+              title="Aumentar base"
+            >
+              +
+            </button>
+            <div className="size-buttons">
+              {[3, 5, 6, 7, 8, 10, 12, 15, 20].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={solving}
+                  className={`size-btn ${numBalls === n ? 'active' : ''} ${
+                    n > 8 ? 'human-only' : ''
+                  }`}
+                  onClick={() => onChangeNumBalls(n)}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
