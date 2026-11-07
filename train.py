@@ -301,10 +301,14 @@ def train(agent: BallsAgent, game: Game):
     return best_weights, metrics
 
 if __name__ == "__main__":
-    all_models = {}
+    all_models = (
+        torch.load("dqn_model.pth", map_location="cpu", weights_only=True)
+        if os.path.exists("dqn_model.pth")
+        else {}
+    )
     metrics_by_size = {}
 
-    for n in range(1, MAX_BALLS + 1):
+    for n in range(6, MAX_BALLS + 1):
         print(f"\nTreinando modelo para pirâmide de base {n} ({n * (n + 1) // 2} bolas)...")
         game = Game(num_balls=n)
         agent = BallsAgent(game, ALPHA, INITIAL_EPSILON, DECAY, FINAL_EPSILON)

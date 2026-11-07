@@ -5,6 +5,7 @@ export default function GameControls({
   numBalls,
   onChangeNumBalls,
   clicks,
+  maxClicks,
   aiPar,
   blackCount,
   totalBalls,
@@ -24,7 +25,9 @@ export default function GameControls({
       <div className="metrics-grid">
         <div className="metric-box">
           <span className="metric-label">Cliques</span>
-          <strong className="metric-value">{clicks}</strong>
+          <strong className="metric-value">
+            {clicks} / {maxClicks}
+          </strong>
         </div>
 
         <div className="metric-box">
@@ -52,8 +55,8 @@ export default function GameControls({
             <span className="size-desc">
               {totalBalls} bolas no total •{' '}
               {numBalls <= 8
-                ? 'Resolução automática (IA) disponível'
-                : 'Acima de 8 bolas: desafio manual (par calculado via GF(2))'}
+                ? 'Resolvedor automático: Rede Neural (IA)'
+                : 'Resolvedor automático: Álgebra Linear GF(2)'}
             </span>
           </div>
           <div className="size-controls-right">

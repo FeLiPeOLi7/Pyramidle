@@ -9,6 +9,7 @@ import {
   applyAction,
   createPyramidGeometry,
   generatePuzzleState,
+  getGf2Action,
   isDone,
 } from './engine/pyramid';
 import { 
@@ -71,6 +72,7 @@ export default function App() {
 
   const [isStatsOpen, setIsStatsOpen] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isGameOverOpen, setIsGameOverOpen] = useState(false);
 
   const snapContainerRef = useRef(null);
   const lastActionRef = useRef(null);
@@ -92,6 +94,7 @@ export default function App() {
 
   const setupBoard = (targetMode = mode, targetSize = activeNumBalls, customSeed = null) => {
     setSolving(false);
+    setIsGameOverOpen(false);
     setLastAiAction(null);
     setUsedAi(false);
     lastActionRef.current = null;
@@ -133,7 +136,15 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, activeNumBalls, allWeights]);
 
+  const maxClicks = Math.max(aiPar * 2, 4);
   const solved = state.length > 0 && isDone(state);
+  const gameOver = !solved && !solving && clicks >= maxClicks;
+
+  useEffect(() => {
+    if (gameOver) {
+      setIsGameOverOpen(true);
+    }
+  }, [gameOver]);
 
   useEffect(() => {
     if (!solved) return;
@@ -182,33 +193,40 @@ export default function App() {
 
   useEffect(() => {
     if (!solving || solved) return;
+    const useDqn = activeNumBalls <= MAX_AI_BASE_SIZE;
     const modelForSize = allWeights ? allWeights[String(activeNumBalls)] : null;
-    if (!modelForSize) {
+    if (useDqn && !modelForSize) {
       setSolving(false);
       return;
     }
 
     const timer = setTimeout(async () => {
       const stateKey = state.join('');
-      const { action } = await selectDqnAction(
-        modelForSize,
-        state,
-        lastActionRef.current,
-        visitedRef.current
-      );
+      let action;
+
+      if (useDqn) {
+        const res = await selectDqnAction(
+          modelForSize,
+          state,
+          lastActionRef.current,
+          visitedRef.current
+        );
+        action = res.action;
+      } else {
+        action = getGf2Action(geometry.adjMatrix, state);
+      }
 
       visitedRef.current.add(`${stateKey}:${action}`);
       lastActionRef.current = action;
       setLastAiAction(action);
       setState((prev) => applyAction(prev, geometry.adjMatrix, action));
-      setClicks((c) => c + 1);
     }, 500);
 
     return () => clearTimeout(timer);
   }, [solving, solved, state, allWeights, activeNumBalls, geometry]);
 
   const handleBallClick = (ballIdx) => {
-    if (solved || solving) return;
+    if (solved || solving || gameOver) return;
     setLastAiAction(null);
     lastActionRef.current = ballIdx;
     setState((prev) => applyAction(prev, geometry.adjMatrix, ballIdx));
@@ -217,11 +235,23 @@ export default function App() {
 
   const handleResetToInitial = () => {
     setSolving(false);
+    setIsGameOverOpen(false);
     setLastAiAction(null);
     lastActionRef.current = null;
     visitedRef.current = new Set();
     setState(initialState);
     setClicks(0);
+  };
+
+  const handleWatchSolutionFromStart = () => {
+    setIsGameOverOpen(false);
+    setUsedAi(true);
+    setLastAiAction(null);
+    lastActionRef.current = null;
+    visitedRef.current = new Set();
+    setState(initialState);
+    setClicks(0);
+    setSolving(true);
   };
 
   const handleToggleSolve = () => {
@@ -253,7 +283,7 @@ export default function App() {
   };
 
   const canUseAi =
-    activeNumBalls <= MAX_AI_BASE_SIZE &&
+    activeNumBalls > MAX_AI_BASE_SIZE ||
     Boolean(allWeights && allWeights[String(activeNumBalls)]);
 
   const blackCount = state.reduce((acc, v) => acc + v, 0);
@@ -308,6 +338,7 @@ export default function App() {
             numBalls={activeNumBalls}
             onChangeNumBalls={(n) => setFreeNumBalls(n)}
             clicks={clicks}
+            maxClicks={maxClicks}
             aiPar={aiPar}
             blackCount={blackCount}
             totalBalls={geometry.balls.length}
@@ -350,6 +381,52 @@ export default function App() {
         onClose={() => setIsHelpOpen(false)}
         onJumpToContext={() => scrollToSlide(1)}
       />
+
+      {isGameOverOpen && (
+        <div className="modal-backdrop" onClick={() => setIsGameOverOpen(false)}>
+          <div
+            className="modal-card gameover-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h2>Fim de Jogo — Limite de Cliques!</h2>
+              <button
+                type="button"
+                className="close-btn"
+                onClick={() => setIsGameOverOpen(false)}
+              >
+                Fechar
+              </button>
+            </div>
+            <div className="gameover-body">
+              <p>
+                Você atingiu o limite máximo de{' '}
+                <strong>{maxClicks} cliques</strong> (2× a Referência de{' '}
+                <strong>{aiPar} cliques</strong>) sem deixar todas as bolas
+                pretas.
+              </p>
+              <div className="gameover-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleResetToInitial}
+                >
+                  Tentar Novamente
+                </button>
+                {canUseAi && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={handleWatchSolutionFromStart}
+                  >
+                    Ver Resolução Passo a Passo
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

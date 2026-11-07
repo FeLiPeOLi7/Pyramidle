@@ -117,6 +117,46 @@ export function clicksRemaining(adjMatrix, state) {
   return sum;
 }
 
+export function getGf2Action(adjMatrix, state) {
+  const n = state.length;
+  const b = state.map((s) => (s === 1 ? 0 : 1));
+  const aug = adjMatrix.map((row, i) => [...row, b[i]]);
+
+  let pivotRow = 0;
+  const pivotCols = [];
+  for (let col = 0; col < n; col++) {
+    let found = -1;
+    for (let r = pivotRow; r < n; r++) {
+      if (aug[r][col] === 1) {
+        found = r;
+        break;
+      }
+    }
+    if (found === -1) continue;
+
+    const tmp = aug[pivotRow];
+    aug[pivotRow] = aug[found];
+    aug[found] = tmp;
+
+    for (let l = 0; l < n; l++) {
+      if (l !== pivotRow && aug[l][col] === 1) {
+        for (let c = 0; c <= n; c++) {
+          aug[l][c] ^= aug[pivotRow][c];
+        }
+      }
+    }
+    pivotCols.push(col);
+    pivotRow++;
+  }
+
+  for (let r = 0; r < pivotRow; r++) {
+    if (aug[r][n] === 1) {
+      return pivotCols[r];
+    }
+  }
+  return 0;
+}
+
 export function applyAction(state, adjMatrix, action) {
   const row = adjMatrix[action];
   return state.map((val, idx) => (row[idx] === 1 ? val ^ 1 : val));
