@@ -1,4 +1,4 @@
-# Balls Pyramid — Deep Reinforcement Learning & $\mathbb{GF}(2)$ Solver
+# Pyramidle — Deep Reinforcement Learning & $\mathbb{GF}(2)$ Solver
 
 ![Python](https://img.shields.io/badge/Python-3.13%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-Double_DQN-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
@@ -7,6 +7,7 @@
 
 Um jogo de quebra-cabeça interativo em grade triangular (inspirado no clássico *Lights Out*) desenvolvido em **Python + Pygame** e **React**, equipado com um agente autônomo de **Aprendizado por Reforço Profundo (Double Deep Q-Network)** em **PyTorch** e um validador algébrico baseado em **Eliminação Gaussiana no Corpo Finito $\mathbb{GF}(2)$**.
 
+[![Play PYRAMIDLE](https://img.shields.io/badge/Play-PYRAMIDLE-8B5CF6?style=for-the-badge)](https://pyramidle.tech)
 ---
 
 ## O Problema e o Desafio de IA
