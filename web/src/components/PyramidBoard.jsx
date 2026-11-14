@@ -8,6 +8,7 @@ export default function PyramidBoard({
   solving,
   solved,
   showRadiusPreview,
+  t,
 }) {
   const [hoveredBall, setHoveredBall] = useState(() => {
     const params = new URLSearchParams(window.location.search);
@@ -29,18 +30,22 @@ export default function PyramidBoard({
       <div className="board-top-bar">
         <div className="legend-row">
           <span className="legend-item">
-            <span className="legend-ball white" /> Branca
+            <span className="legend-ball white" /> {t?.white || 'Branca'}
           </span>
           <span className="legend-item">
-            <span className="legend-ball black" /> Preta (Alvo)
+            <span className="legend-ball black" /> {t?.black || 'Preta (Alvo)'}
           </span>
           {lastAiAction !== null && (
             <span className="legend-item ai-legend">
-              <span className="legend-ball ai-ring" /> Passo Automático
+              <span className="legend-ball ai-ring" /> {t?.aiStep || 'Passo Automático'}
             </span>
           )}
         </div>
-        {solved && <span className="solved-inline-tag">Pirâmide Concluída</span>}
+        {solved && (
+          <span className="solved-inline-tag">
+            {t?.pyramidDone || 'Pirâmide Concluída'}
+          </span>
+        )}
       </div>
 
       <div className="svg-wrapper">

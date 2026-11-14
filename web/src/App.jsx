@@ -23,17 +23,12 @@ import {
   getChallengeNumber,
   getTodayKey,
 } from './engine/seededRng';
+import { translations, getInitialLanguage } from './i18n/translations';
 
 const DAILY_BASE_SIZES = [5, 6, 7, 8];
 const MAX_AI_BASE_SIZE = 6;
 const STORAGE_STATS_KEY = 'pyramidle_stats_v1';
 const STORAGE_DAILY_PREFIX = 'pyramidle_daily_';
-
-const SLIDES = [
-  { id: 'slide-game', label: 'Jogo' },
-  { id: 'slide-math', label: '01 Tabuleiro' },
-  { id: 'slide-ai', label: '02 Resolvedor' },
-];
 
 function loadStats() {
   try {
@@ -50,6 +45,23 @@ export default function App() {
   );
   const todayKey = useMemo(() => getTodayKey(), []);
   const challengeNumber = useMemo(() => getChallengeNumber(todayKey), [todayKey]);
+
+  const [lang, setLang] = useState(getInitialLanguage);
+  const t = translations[lang] || translations.pt;
+
+  const handleToggleLang = () => {
+    const nextLang = lang === 'pt' ? 'en' : 'pt';
+    setLang(nextLang);
+    try {
+      localStorage.setItem('pyramidle_lang', nextLang);
+    } catch (_) {}
+  };
+
+  const slides = useMemo(() => [
+    { id: 'slide-game', label: t.slides.game },
+    { id: 'slide-math', label: t.slides.slideMath },
+    { id: 'slide-ai', label: t.slides.slideAi },
+  ], [t.slides]);
 
   const [mode, setMode] = useState(
     () => searchParams.get('mode') === 'free' ? 'free' : 'daily'
@@ -68,20 +80,12 @@ export default function App() {
   const [lastAiAction, setLastAiAction] = useState(() =>
     searchParams.has('aiStep') ? Number(searchParams.get('aiStep')) : null
   );
-  const [showRadiusPreview, setShowRadiusPreview] = useState(true);
+  const [showRadiusPreview, setShowRadiusPreview] = useState(
+    () => searchParams.get('preview') === 'true'
+  );
   const [activeSlide, setActiveSlide] = useState(
     () => Number(searchParams.get('slide')) || 0
   );
-
-  const [stats, setStats] = useState(() => loadStats());
-  const [dailyResult, setDailyResult] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`${STORAGE_DAILY_PREFIX}${todayKey}`);
-      return saved ? JSON.parse(saved) : null;
-    } catch (_) {
-      return null;
-    }
-  });
 
   const [isStatsOpen, setIsStatsOpen] = useState(
     () => searchParams.get('modal') === 'stats'
@@ -93,13 +97,23 @@ export default function App() {
     () => searchParams.get('modal') === 'gameover'
   );
 
+  const [stats, setStats] = useState(loadStats);
+  const [dailyResult, setDailyResult] = useState(() => {
+    try {
+      const raw = localStorage.getItem(`${STORAGE_DAILY_PREFIX}${todayKey}`);
+      if (raw) return JSON.parse(raw);
+    } catch (_) {}
+    return null;
+  });
+
   const snapContainerRef = useRef(null);
-  const lastActionRef = useRef(null);
   const visitedRef = useRef(new Set());
+  const lastActionRef = useRef(null);
 
   const dailyBaseSize =
     DAILY_BASE_SIZES[(challengeNumber - 1) % DAILY_BASE_SIZES.length];
   const activeNumBalls = mode === 'daily' ? dailyBaseSize : freeNumBalls;
+
   const geometry = useMemo(
     () => createPyramidGeometry(activeNumBalls, 760, 420),
     [activeNumBalls]
@@ -144,7 +158,7 @@ export default function App() {
     setClicks(0);
 
     const modelForSize = allWeights ? allWeights[String(targetSize)] : null;
-    const benchmark = computeAiBenchmark(
+    computeAiBenchmark(
       modelForSize,
       generated,
       geom.adjMatrix,
@@ -159,8 +173,9 @@ export default function App() {
 
   useEffect(() => {
     const slideParam = Number(searchParams.get('slide'));
-    if (slideParam > 0 && snapContainerRef.current) {
-      const targetId = SLIDES[slideParam]?.id;
+    if (!Number.isNaN(slideParam) && slideParam >= 0 && slideParam <= 2) {
+      setActiveSlide(slideParam);
+      const targetId = slides[slideParam]?.id;
       const el = document.getElementById(targetId);
       if (el) {
         el.scrollIntoView({ behavior: 'instant' });
@@ -194,6 +209,19 @@ export default function App() {
       } catch (_) {}
 
       setStats((prev) => {
+        // Se a IA foi utilizada para resolver, NÃO conta vitória e PERDE a sequência (streak = 0)!
+        if (usedAi) {
+          const updated = {
+            ...prev,
+            played: prev.played + 1,
+            currentStreak: 0,
+          };
+          try {
+            localStorage.setItem(STORAGE_STATS_KEY, JSON.stringify(updated));
+          } catch (_) {}
+          return updated;
+        }
+
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
         const yKey = `${yesterday.getFullYear()}-${String(
@@ -287,6 +315,19 @@ export default function App() {
   const handleToggleSolve = () => {
     if (!solving) {
       setUsedAi(true);
+      if (mode === 'daily') {
+        // Se no modo diário pediu ajuda da IA, perde a sequência no ato
+        setStats((prev) => {
+          if (prev.currentStreak > 0) {
+            const updated = { ...prev, currentStreak: 0 };
+            try {
+              localStorage.setItem(STORAGE_STATS_KEY, JSON.stringify(updated));
+            } catch (_) {}
+            return updated;
+          }
+          return prev;
+        });
+      }
       lastActionRef.current = null;
       visitedRef.current = new Set();
       setSolving(true);
@@ -296,18 +337,18 @@ export default function App() {
   };
 
   const scrollToSlide = (index) => {
-    const targetId = SLIDES[index]?.id;
+    const targetId = slides[index]?.id;
     const el = document.getElementById(targetId);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth' });
-      setActiveSlide(index);
     }
+    setActiveSlide(index);
   };
 
   const handleScroll = (e) => {
-    const container = e.currentTarget;
-    const index = Math.round(container.scrollTop / container.clientHeight);
-    if (index !== activeSlide && index >= 0 && index < SLIDES.length) {
+    const el = e.currentTarget;
+    const index = Math.round(el.scrollTop / el.clientHeight);
+    if (index !== activeSlide && index >= 0 && index < slides.length) {
       setActiveSlide(index);
     }
   };
@@ -315,6 +356,10 @@ export default function App() {
   const canUseAi = true;
 
   const blackCount = state.reduce((acc, v) => acc + v, 0);
+
+  const gameOverBody = t.gameOverModal.body
+    .replace('{maxClicks}', maxClicks)
+    .replace('{aiPar}', aiPar);
 
   return (
     <div
@@ -324,7 +369,7 @@ export default function App() {
     >
       {/* Navegação lateral de slides */}
       <aside className="slide-dots" aria-label="Navegação de seções">
-        {SLIDES.map((s, idx) => (
+        {slides.map((s, idx) => (
           <button
             key={s.id}
             type="button"
@@ -348,6 +393,9 @@ export default function App() {
           onOpenHelp={() => setIsHelpOpen(true)}
           onOpenStats={() => setIsStatsOpen(true)}
           onJumpToContext={() => scrollToSlide(1)}
+          lang={lang}
+          onToggleLang={handleToggleLang}
+          t={t.header}
         />
 
         <main className="main-container">
@@ -359,6 +407,7 @@ export default function App() {
             solving={solving}
             solved={solved}
             showRadiusPreview={showRadiusPreview}
+            t={t.board}
           />
 
           <GameControls
@@ -372,34 +421,39 @@ export default function App() {
             totalBalls={geometry.balls.length}
             solving={solving}
             solved={solved}
+            usedAi={usedAi}
             canUseAi={canUseAi}
             onToggleSolve={handleToggleSolve}
             onReset={handleResetToInitial}
             onNewRandomBoard={() => setupBoard('free', activeNumBalls)}
             showRadiusPreview={showRadiusPreview}
             setShowRadiusPreview={setShowRadiusPreview}
+            t={t.controls}
           />
         </main>
 
-        <Footer onScrollToMath={() => scrollToSlide(1)} />
+        <Footer onScrollToMath={() => scrollToSlide(1)} t={t.footer} />
       </section>
 
       {/* Slides 2, 3 e 4: Contexto e Engenharia */}
-      <ContextSlides onBackToGame={() => scrollToSlide(0)} />
+      <ContextSlides onBackToGame={() => scrollToSlide(0)} t={t.slides} />
 
       <StatsModal
         isOpen={isStatsOpen}
         onClose={() => setIsStatsOpen(false)}
+        onReset={handleResetToInitial}
         stats={stats}
         dailyResult={dailyResult}
         challengeNumber={challengeNumber}
         aiPar={aiPar}
+        t={t.statsModal}
       />
 
       <HelpModal
         isOpen={isHelpOpen}
         onClose={() => setIsHelpOpen(false)}
         onJumpToContext={() => scrollToSlide(1)}
+        t={t.helpModal}
       />
 
       {isGameOverOpen && (
@@ -409,29 +463,24 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="modal-header">
-              <h2>Fim de Jogo — Limite de Cliques!</h2>
+              <h2>{t.gameOverModal.title}</h2>
               <button
                 type="button"
                 className="close-btn"
                 onClick={() => setIsGameOverOpen(false)}
               >
-                Fechar
+                {t.gameOverModal.close}
               </button>
             </div>
             <div className="gameover-body">
-              <p>
-                Você atingiu o limite máximo de{' '}
-                <strong>{maxClicks} cliques</strong> (2× a Referência de{' '}
-                <strong>{aiPar} cliques</strong>) sem deixar todas as bolas
-                pretas.
-              </p>
+              <p>{gameOverBody}</p>
               <div className="gameover-actions">
                 <button
                   type="button"
                   className="btn btn-secondary"
                   onClick={handleResetToInitial}
                 >
-                  Tentar Novamente
+                  {t.gameOverModal.tryAgain}
                 </button>
                 {canUseAi && (
                   <button
@@ -439,7 +488,7 @@ export default function App() {
                     className="btn btn-primary"
                     onClick={handleWatchSolutionFromStart}
                   >
-                    Ver Resolução Passo a Passo
+                    {t.gameOverModal.watchSolution}
                   </button>
                 )}
               </div>

@@ -5,11 +5,12 @@ const MAX_BASE = 6;
 
 export async function loadAllDqnSessions(maxBase = MAX_BASE) {
     const sessions = {};
+    const baseUrl = import.meta.env.BASE_URL || '/';
     for (let n = 1; n <= maxBase; n++) {
       try {
-        sessions[String(n)] = await ort.InferenceSession.create(`/model_${n}.onnx`);
+        sessions[String(n)] = await ort.InferenceSession.create(`${baseUrl}model_${n}.onnx`);
       } catch (err) {
-        console.warn(`Modelo /model_${n}.onnx não encontrado ou ainda não treinado.`);
+        console.warn(`Modelo ${baseUrl}model_${n}.onnx não encontrado ou ainda não treinado.`);
       }
     }
     return sessions;

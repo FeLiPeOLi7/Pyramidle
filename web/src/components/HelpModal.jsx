@@ -1,43 +1,35 @@
 import React from 'react';
 
-export default function HelpModal({ isOpen, onClose, onJumpToContext }) {
+export default function HelpModal({ isOpen, onClose, onJumpToContext, t }) {
   if (!isOpen) return null;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-card help-modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Regras do Jogo</h2>
+          <h2>{t.title}</h2>
           <button type="button" className="close-btn" onClick={onClose}>
-            Fechar
+            {t.close}
           </button>
         </div>
 
         <div className="help-body">
           <section className="help-section">
-            <h3>Objetivo</h3>
-            <p>
-              Deixe <strong>todas as bolas da pirâmide pretas</strong> utilizando a
-              menor quantidade de cliques possível.
-            </p>
-            <p>
-              Ao clicar em uma bola, ela própria e todas as bolas vizinhas dentro de
-              um raio de alcance de <code>3 × raio</code> invertem de cor
-              simultaneamente.
-            </p>
+            <h3>{t.goalTitle}</h3>
+            <p>{t.goalP1}</p>
+            <p>{t.goalP2}</p>
           </section>
 
           <section className="help-section">
-            <h3>Modos Disponíveis</h3>
+            <h3>{t.modesTitle}</h3>
             <ul>
               <li>
-                <strong>Desafio Diário:</strong> Uma pirâmide única por dia (base 5,
-                15 bolas), igual para todos os jogadores.
+                <strong>{t.dailyDescTitle}</strong>
+                {t.dailyDescText}
               </li>
               <li>
-                <strong>Modo Livre:</strong> Permite escolher o tamanho da base entre
-                2 e 10 bolas, sortear novos tabuleiros e assistir à resolução
-                automática passo a passo (disponível até 8 bolas na base).
+                <strong>{t.freeDescTitle}</strong>
+                {t.freeDescText}
               </li>
             </ul>
           </section>
@@ -51,7 +43,7 @@ export default function HelpModal({ isOpen, onClose, onJumpToContext }) {
                 onJumpToContext();
               }}
             >
-              Ver explicação matemática nos slides abaixo ↓
+              {t.goToMath}
             </button>
           </div>
         </div>

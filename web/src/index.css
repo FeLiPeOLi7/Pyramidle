@@ -265,6 +265,26 @@ body {
   border-color: var(--accent-blue);
 }
 
+.lang-btn {
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(15, 23, 42, 0.85);
+  color: var(--accent-blue);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.15s ease;
+}
+
+.lang-btn:hover {
+  background: rgba(56, 189, 248, 0.18);
+  border-color: var(--accent-blue);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
 /* Main Game Slide */
 .main-container {
   max-width: 880px;
@@ -933,6 +953,27 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
+}
+
+.ai-assisted-note {
+  font-size: 0.78rem;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.daily-modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.daily-modal-actions .btn {
+  width: 100%;
 }
 
 .share-btn {
