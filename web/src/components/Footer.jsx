@@ -2,7 +2,7 @@ import React from 'react';
 
 const REPO_URL = 'https://github.com/FeLiPeOLi7/Pyramidle';
 
-export default function Footer({ onScrollToMath }) {
+export default function Footer({ onScrollToMath, t }) {
   return (
     <footer className="app-footer">
       <div className="footer-inner">
@@ -15,9 +15,9 @@ export default function Footer({ onScrollToMath }) {
             type="button"
             className="scroll-down-btn"
             onClick={onScrollToMath}
-            title="Ver explicação técnica em slides"
+            title={t?.mathHint || 'Entenda a matemática e o algoritmo de resolução ↓'}
           >
-            Entenda a matemática e o algoritmo de resolução ↓
+            {t?.mathHint || 'Entenda a matemática e o algoritmo de resolução ↓'}
           </button>
         )}
 

@@ -11,12 +11,14 @@ export default function GameControls({
   totalBalls,
   solving,
   solved,
+  usedAi,
   canUseAi,
   onToggleSolve,
   onReset,
   onNewRandomBoard,
   showRadiusPreview,
   setShowRadiusPreview,
+  t,
 }) {
   const progressPct = Math.round((blackCount / totalBalls) * 100);
 
@@ -24,21 +26,21 @@ export default function GameControls({
     <section className="controls-panel">
       <div className="metrics-grid">
         <div className="metric-box">
-          <span className="metric-label">Cliques</span>
+          <span className="metric-label">{t.clicks}</span>
           <strong className="metric-value">
             {clicks} / {maxClicks}
           </strong>
         </div>
 
         <div className="metric-box">
-          <span className="metric-label">Referência (Par)</span>
+          <span className="metric-label">{t.par}</span>
           <strong className="metric-value accent">
-            {`${aiPar} cliques`}
+            {`${aiPar} ${t.clicksUnit}`}
           </strong>
         </div>
 
         <div className="metric-box">
-          <span className="metric-label">Progresso</span>
+          <span className="metric-label">{t.progress}</span>
           <strong className="metric-value">
             {blackCount}/{totalBalls} ({progressPct}%)
           </strong>
@@ -51,12 +53,12 @@ export default function GameControls({
       {mode === 'free' && (
         <div className="size-selector-bar">
           <div className="size-label-group">
-            <span className="size-title">Base da Pirâmide: {numBalls}</span>
+            <span className="size-title">
+              {t.baseTitle}: {numBalls}
+            </span>
             <span className="size-desc">
-              {totalBalls} bolas no total •{' '}
-              {numBalls <= 6
-                ? 'Resolvedor automático: Rede Neural (IA)'
-                : 'Resolvedor automático: Álgebra Linear GF(2)'}
+              {totalBalls} {t.totalBalls} •{' '}
+              {numBalls <= 6 ? t.aiDqnDesc : t.aiGf2Desc}
             </span>
           </div>
           <div className="size-controls-right">
@@ -65,7 +67,7 @@ export default function GameControls({
               disabled={solving || numBalls <= 2}
               className="size-btn"
               onClick={() => onChangeNumBalls(Math.max(2, numBalls - 1))}
-              title="Diminuir base"
+              title={t.decreaseBase}
             >
               −
             </button>
@@ -83,7 +85,7 @@ export default function GameControls({
               disabled={solving || numBalls >= 20}
               className="size-btn"
               onClick={() => onChangeNumBalls(Math.min(20, numBalls + 1))}
-              title="Aumentar base"
+              title={t.increaseBase}
             >
               +
             </button>
@@ -112,9 +114,9 @@ export default function GameControls({
             type="button"
             className="btn btn-secondary"
             onClick={onReset}
-            disabled={solving || clicks === 0}
+            disabled={solving || (!solved && clicks === 0 && !usedAi)}
           >
-            Reiniciar
+            {t.reset}
           </button>
 
           {mode === 'free' && (
@@ -124,7 +126,7 @@ export default function GameControls({
               onClick={onNewRandomBoard}
               disabled={solving}
             >
-              Novo Tabuleiro
+              {t.newBoard}
             </button>
           )}
 
@@ -134,7 +136,7 @@ export default function GameControls({
               checked={showRadiusPreview}
               onChange={(e) => setShowRadiusPreview(e.target.checked)}
             />
-            <span>Visualizar alcance</span>
+            <span>{t.showRadius}</span>
           </label>
         </div>
 
@@ -142,14 +144,25 @@ export default function GameControls({
           {canUseAi ? (
             <button
               type="button"
-              className={`btn ${solving ? 'btn-Warning' : 'btn-primary'}`}
+              className={`btn ${solving ? 'btn-Warning' : 'btn-primary'} ${
+                mode === 'daily' && !solving ? 'btn-daily-ai' : ''
+              }`}
               onClick={onToggleSolve}
               disabled={solved}
+              title={
+                mode === 'daily' && !solving
+                  ? t.solveStepDailyWarn
+                  : undefined
+              }
             >
-              {solving ? 'Pausar Resolução' : 'Resolver Passo a Passo'}
+              {solving
+                ? t.pauseSolve
+                : mode === 'daily'
+                ? t.solveStepDailyWarn
+                : t.solveStep}
             </button>
           ) : (
-            <span className="human-challenge-pill">Modo Manual</span>
+            <span className="human-challenge-pill">{t.manualMode}</span>
           )}
         </div>
       </div>

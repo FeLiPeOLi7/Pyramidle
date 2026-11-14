@@ -2,5 +2,7 @@
 *.onnx
 __pycache__
 *.pth
-*.png
-assets/
+node_modules/
+dist/
+.cache/
+

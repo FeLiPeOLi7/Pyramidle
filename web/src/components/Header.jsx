@@ -8,6 +8,9 @@ export default function Header({
   onOpenHelp,
   onOpenStats,
   onJumpToContext,
+  lang,
+  onToggleLang,
+  t,
 }) {
   return (
     <header className="app-header">
@@ -32,14 +35,14 @@ export default function Header({
             className={`mode-tab ${mode === 'daily' ? 'active' : ''}`}
             onClick={() => setMode('daily')}
           >
-            Desafio Diário
+            {t.daily}
           </button>
           <button
             type="button"
             className={`mode-tab ${mode === 'free' ? 'active' : ''}`}
             onClick={() => setMode('free')}
           >
-            Modo Livre
+            {t.free}
           </button>
         </nav>
 
@@ -48,31 +51,44 @@ export default function Header({
             type="button"
             className="text-link-btn"
             onClick={onJumpToContext}
-            title="Ver explicação técnica em slides"
+            title={t.howItWorks}
           >
-            Como Funciona
+            {t.howItWorks}
           </button>
-          <div className="streak-pill" title="Sequência de dias seguidos">
-            <span className="streak-label">Sequência</span>
+
+          <div className="streak-pill" title={t.streak}>
+            <span className="streak-label">{t.streak}</span>
             <strong>{streak}</strong>
           </div>
+
           <button
             type="button"
             className="icon-btn"
             onClick={onOpenStats}
-            title="Estatísticas"
-            aria-label="Estatísticas"
+            title={t.stats}
+            aria-label={t.stats}
           >
-            Stats
+            {t.stats}
           </button>
+
           <button
             type="button"
             className="icon-btn"
             onClick={onOpenHelp}
-            title="Regras do jogo"
-            aria-label="Regras"
+            title={t.rules}
+            aria-label={t.rules}
           >
-            Regras
+            {t.rules}
+          </button>
+
+          <button
+            type="button"
+            className="lang-btn"
+            onClick={onToggleLang}
+            title={t.changeLang}
+            aria-label={t.changeLang}
+          >
+            {lang === 'pt' ? 'EN' : 'PT'}
           </button>
         </div>
       </div>
